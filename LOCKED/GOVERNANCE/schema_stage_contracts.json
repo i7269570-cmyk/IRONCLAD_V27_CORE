@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TRINITY Stage Contracts Schema (Reference-Only)",
+  "type": "object",
+  "properties": {
+    "stages": {
+      "type": "object",
+      "properties": {
+        "S0": { "$ref": "#/$defs/stage_ref" },
+        "S1": { "$ref": "#/$defs/stage_ref" },
+        "S2": { "$ref": "#/$defs/stage_ref" },
+        "S3": { "$ref": "#/$defs/stage_ref" },
+        "S4": { "$ref": "#/$defs/stage_ref" },
+        "S5": { "$ref": "#/$defs/stage_ref" },
+        "S6": { "$ref": "#/$defs/stage_ref" },
+        "S7": { "$ref": "#/$defs/stage_ref" },
+        "S8": { "$ref": "#/$defs/stage_ref" },
+        "S9": { "$ref": "#/$defs/stage_ref" },
+        "S10": { "$ref": "#/$defs/stage_ref" },
+        "S11": { "$ref": "#/$defs/stage_ref" }
+      },
+      "required": ["S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11"],
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "stage_ref": {
+      "type": "object",
+      "properties": {
+        "input_schema_ref": { "type": "string", "minLength": 1 },
+        "output_schema_ref": { "type": "string", "minLength": 1 },
+        "on_fail": { "const": "SAFE_HALT" }
+      },
+      "required": ["input_schema_ref", "output_schema_ref", "on_fail"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["stages"],
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+system:
+  system_id: "TRINITY_CORE"
+  version: "1.0.0"
+
+safety_limits:
+  max_position_pct: 0.05
+  max_daily_loss_pct: 0.10
+  max_slippage_pct: 0.01
+  max_holding_minutes: 120
+
+execution_policy:
+  on_violation: "SAFE_HALT"

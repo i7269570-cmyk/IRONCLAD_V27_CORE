@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TRINITY Addendum AIP Schema",
+  "type": "object",
+  "properties": {
+    "audit_policy": {
+      "type": "object",
+      "properties": {
+        "violation_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": ["violation_types"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["audit_policy"],
+  "additionalProperties": false
+}

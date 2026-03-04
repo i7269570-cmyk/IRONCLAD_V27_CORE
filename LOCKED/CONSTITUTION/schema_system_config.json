@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TRINITY System Config Schema (SSOT Safety Only)",
+  "type": "object",
+  "properties": {
+    "system": {
+      "type": "object",
+      "properties": {
+        "system_id": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "required": ["system_id", "version"],
+      "additionalProperties": false
+    },
+    "safety_limits": {
+      "type": "object",
+      "properties": {
+        "max_position_pct": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_daily_loss_pct": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_slippage_pct": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_holding_minutes": { "type": "integer", "minimum": 1 }
+      },
+      "required": [
+        "max_position_pct",
+        "max_daily_loss_pct",
+        "max_slippage_pct",
+        "max_holding_minutes"
+      ],
+      "additionalProperties": false
+    },
+    "execution_policy": {
+      "type": "object",
+      "properties": {
+        "on_violation": { "const": "SAFE_HALT" }
+      },
+      "required": ["on_violation"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["system", "safety_limits", "execution_policy"],
+  "additionalProperties": false
+}

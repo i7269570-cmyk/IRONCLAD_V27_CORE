@@ -1,0 +1,60 @@
+stages:
+  S0:
+    input_schema_ref: "LOCKED/CONTRACTS/S0_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S0_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S1:
+    input_schema_ref: "LOCKED/CONTRACTS/S1_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S1_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S2:
+    input_schema_ref: "LOCKED/CONTRACTS/S2_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S2_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S3:
+    input_schema_ref: "LOCKED/CONTRACTS/S3_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S3_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S4:
+    input_schema_ref: "LOCKED/CONTRACTS/S4_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S4_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S5:
+    input_schema_ref: "LOCKED/CONTRACTS/S5_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S5_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S6:
+    input_schema_ref: "LOCKED/CONTRACTS/S6_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S6_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S7:
+    input_schema_ref: "LOCKED/CONTRACTS/S7_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S7_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S8:
+    input_schema_ref: "LOCKED/CONTRACTS/S8_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S8_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S9:
+    input_schema_ref: "LOCKED/CONTRACTS/S9_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S9_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S10:
+    input_schema_ref: "LOCKED/CONTRACTS/S10_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S10_output.schema.json"
+    on_fail: "SAFE_HALT"
+
+  S11:
+    input_schema_ref: "LOCKED/CONTRACTS/S11_input.schema.json"
+    output_schema_ref: "LOCKED/CONTRACTS/S11_output.schema.json"
+    on_fail: "SAFE_HALT"
