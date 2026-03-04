@@ -31,3 +31,7 @@ tmp/
 SECURITY/
 keys/
 wallet/
+
+# DB
+*.sqlite
+*.db
