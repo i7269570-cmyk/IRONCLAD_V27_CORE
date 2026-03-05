@@ -1,0 +1,135 @@
+
+## ① LOCKED (동결 영역) LOCKED/
+ ├─ *[01] system_config.yaml       1 # SSOT: 리스크/집행/FORCE_EXIT 정책만
+ ├─ *[02] schema.json              1 # SSOT 필수키(required) + enum 강제
+ ├─ *[03] stage_contracts.yaml     1 # 단방향 I/O 계약(역행 금지)
+ ├─ *[04] addendum_aip.yaml        1 # 감사 기준(PASS/FAIL/RISK)
+ ├─ [05] worker_allowlist.yaml    5 # run.py 외 실행 금지
+ ├─ [06] recovery_policy.yaml     5  # SAFE_HALT 후 자동복구 금지(Fail-Secure)
+ └─ [07] GUARDS/
+      ├─* [07-1] preflight_gate.py   4 # 실행 전: schema/contract/hash 검증
+      └─* [07-2] integrity_guard.py  4 # 실행 중: config_hash 변경 즉시 SAFE_HALT
+
+
+## ② RUNTIME (역할 충돌 제거 완료) RUNTIME/
+ ├─ *[08] run.py                  2  # 유일 진입점 + 상태기계 + FORCE_EXIT + 종료 시퀀스   
+ ├─ [09] scheduler.py            3  # 시간 정보만 제공(전략 파일 읽기)
+ ├─ [10] market_data.py          3  # 데이터 입력
+ ├─ [11] regime_filter.py        3  # 시장 상태(레짐)만 판단 (시간 판단 제거)
+ ├─ [12] entry_engine.py         3  # 진입 신호 생성(조건식은 STRATEGY 기반)
+ ├─ [13] risk_gate.py            3  # 리스크 상한 검사(SSOT 참조)
+ ├─* [14] position_sizer.py       3  # 비중/수량 산정(SSOT 참조)
+ ├─ *[15] order_intent.py         3  # 주문 의도 생성(hash/TTL, 중복 방지 기반)
+ ├─ [16] pre_order_check.py      3  # 주문 전 최종 검증(세션상태/중복/정책)
+ ├─ [17] order_manager.py        3  # 실제 주문 실행(idempotent)
+ ├─ [18] fill_tracker.py         3  # 체결 추적
+ ├─ [19] position_reconciler.py  3 # 내부-거래소 동기화(불일치 정책 적용)
+ └─ [20] exit_engine.py          3    # TP/SL 등 “전략 청산”만 담당
+
+## ③ EVIDENCE (불변 증거) EVIDENCE/
+ ├─ [21] ledger_writer.py        6   # append-only 원장
+ ├─ [22] audit_writer.py         6   # 감사/요약 기록(config_hash 포함)
+ ├─ [23] incident_writer.py      6   # SAFE_HALT 사고 패킷(reason_code+snapshot)
+ └─ STATE/
+      └─ [24] state.json          6  # 실시간 상태(판단 없음)
+
+## ④ STRATEGY (유일 변경 영역  STRATEGY/
+ ├─ [25] strategy_schema.json    7
+ ├─ [26] strategy_spec.yaml      7   # 요일/시간/조건식/파라미터(데이터 후 채움)
+ └─ [27] change_log.md           7   # 변경 기록
+
+## ⑤ n8n (신경계 고정)          8
+n8n:
+  Trigger → Execute run.py → Logger * 판단 금지 * 주문 금지 * run.py 호출만
+
+
+
+# &#55357;&#56594; 역할 최종 고정 선언 (충돌 제거)
+
+## scheduler.py (시간 전용)
+* STRATEGY에서 요일/시작/종료 읽음
+* 반환: `is_trading_time`, `session_end_time`
+* &#10060; 상태전환/주문/청산 판단 금지
+
+## regime_filter.py (시장 전용)
+* allowed_regimes 기반 시장 상태만 판단
+* &#10060; 시간 판단 제거(완전 금지)
+
+## run.py (상태 전환 유일 주체)
+* 시간/포지션 상태를 보고 **상태를 전환하는 유일한 곳**
+
+## exit_engine.py (전략 청산 전용)
+* TP/SL 등 “전략 청산”만
+* &#10060; 세션 종료/강제종료 판단 금지
+
+## FORCE_EXIT (강제 청산 전용, run.py 상위)
+* 잔량 0까지 반복 청산
+* 실패 시 SAFE_HALT
+
+# &#55358;&#56800; run.py 상태기계 (고정)
+PRE_OPEN
+TRADING
+NO_NEW_ENTRY
+FORCE_EXIT
+CLOSE
+
+## 상태 전환 규칙(명시)
+* scheduler 기준으로 세션 외면 `NO_NEW_ENTRY`
+* `NO_NEW_ENTRY`에서 포지션>0 → `FORCE_EXIT`
+* 포지션==0 확인되면 `CLOSE`
+
+# &#55357;&#57317; FORCE_EXIT 실패 시 최종 안전 시퀀스 (추가 완결)
+
+## SAFE_HALT 직전 “Cancel All Open Orders” 포함 (필수)
+**FORCE_EXIT가 정책 상한(시간/시도) 초과로 실패하면:**
+
+1. **Cancel All Open Orders 패킷 송신**
+2. **재조회/동기화(잔량/미체결 확인)**
+3. **incident 기록(이유 + 스냅샷)**
+4. **SAFE_HALT 진입**
+&#9989; 이 단계는 **run.py에서만** 수행
+&#9989; exit_engine / order_manager에 넣지 않음.  정상 CLOSE에서는 실행하지 않음(실패 시에만)
+
+# &#9989; “주 4일 5시간 운영 후 전량 청산/중단” 적용 방식
+
+* 요일/시간은 STRATEGY에만 기록
+* scheduler가 시간 판단
+* run.py가 NO_NEW_ENTRY → FORCE_EXIT → CLOSE로 전환
+* FORCE_EXIT가 전량 청산을 보장
+* 실패하면 Cancel-All 후 SAFE_HALT
+
+&#10145;&#65039; **LOCKED 수정 없음**
+&#10145;&#65039; **STRATEGY만 수정**
+
+
+# &#55357;&#56613; 최종 잠금 선언(다시 안 만들기)
+
+1. LOCKED 구조 동결
+2. schema.json required/enum으로 우회 차단
+3. run.py 단일 엔트리 유지
+4. FORCE_EXIT 상위 강제 + 실패 시 Cancel-All + SAFE_HALT
+5. 전략/시간/요일/조건식은 STRATEGY만
+
+
+실전 운용 가이드 (대표님을 위한 체크리스트)
+이제 구조가 고정되었으므로, 앞으로는 LOCKED 폴더는 절대 건드리지 마시고 오직 다음의 작업만 수행하시면 됩니다.
+
+전략 수정: STRATEGY/strategy_spec.yaml에서 요일, 시간, 매매 조건을 입력합니다.
+
+모니터링: EVIDENCE 폴더의 로그와 incident_writer.py가 생성하는 사고 패킷만 체크합니다.
+
+실행: 오직 RUNTIME/run.py 하나만 실행하거나 n8n을 통해 호출합니다.
+
+
+
+LOCKED/
+ ├─ CONSTITUTION/
+ │   ├─ system_config.yaml
+ │   ├─ schema_system_config.json
+ │
+ ├─ GOVERNANCE/
+ │   ├─ stage_contracts.yaml
+ │   ├─ schema_stage_contracts.json
+ │
+ ├─ AIP/
+ │   └─ addendum_aip.yaml
