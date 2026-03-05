@@ -1,0 +1,4 @@
+recovery_policy:
+  mode: FAIL_SECURE
+  auto_recovery: false
+  description: "SAFE_HALT 이후 자동 복구 금지"
