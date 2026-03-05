@@ -1,37 +1,137 @@
-# 환경 변수
+# =========================
+
+# Environment / Secrets (보안 필수)
+
+# =========================
+
 .env
 .env.*
+*.key
+*.pem
+*.secret
+keys/
+wallet/
+SECURITY/
 
-# 로그
+# =========================
+
+# Logs
+
+# =========================
+
 logs/
 *.log
 
-# 데이터
+# =========================
+
+# Data folders (실시간 수집 데이터 제외)
+
+# =========================
+
 data/
+DATA/
 raw_data/
 cache/
+datasets/
+backtest/
+ticks/
+candles/
+orderbook/
 
-# Python 캐시
+# Evidence 수집 데이터 (대표님 시스템)
+
+EVIDENCE/raw_data_orderbook/
+EVIDENCE/raw_data_ticks/
+
+# 대용량/바이너리 데이터 파일 차단
+
+*.parquet
+*.feather
+*.h5
+*.csv
+
+# =========================
+
+# Database
+
+# =========================
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# =========================
+
+# Python Cache
+
+# =========================
+
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# IDE
+# =========================
+
+# Virtual Environment
+
+# =========================
+
+venv/
+.venv/
+env/
+ENV/
+
+# =========================
+
+# Build / Temporary
+
+# =========================
+
+build/
+dist/
+tmp/
+temp/
+*.tmp
+
+# =========================
+
+# IDE / Editor (Notepad++ 포함)
+
+# =========================
+
 .vscode/
 .idea/
+nppBackup/
 
-# 시스템
-Thumbs.db
+# =========================
+
+# OS / Backup
+
+# =========================
+
 .DS_Store
+Thumbs.db
+*.bak
+*.old
+*.backup
+*.swp
 
-# 임시
-temp/
-tmp/
+# compressed data
+*.gz
+*.zip
 
-# 보안
-SECURITY/
-keys/
-wallet/
 
-# DB
-*.sqlite
-*.db
+# =========================
+
+# IMPORTANT: SSOT (반드시 저장해야 하는 목록)
+
+# 시스템 무결성 및 전략 실행을 위해 아래는 제외하지 않음
+
+# =========================
+
+!schema.json
+!system_config.yaml
+!strategy_spec.yaml
+!LOCKED/**/schema.json
