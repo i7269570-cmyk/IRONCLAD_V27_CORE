@@ -1,5 +1,4 @@
 # run.py (S0 entrypoint)
-
 import sys
 import os
 import json
@@ -10,240 +9,148 @@ from jsonschema import validate, ValidationError
 
 from integrity_guard import IntegrityGuard
 from preflight_gate import preflight_gate
-
+from entry_engine import EntryEngine
 
 def safe_halt(reason: str):
     print(f"[SAFE_HALT] {reason}")
     sys.exit(1)
 
+# S1: ImportError SAFE_HALT 준수
+try:
+    from market_data import load_market_data
+    from regime_filter import apply_regime_filter
+    from risk_gate import risk_gate
+    from order_manager import execute_orders
+except ImportError as e:
+    safe_halt(f"MODULE_IMPORT_FAIL: {e}")
 
 BASE_DIR = Path(__file__).resolve().parent
-
-
 PATHS = {
-
-    # LOCKED
     "system_config": BASE_DIR / "LOCKED" / "CONSTITUTION" / "system_config.yaml",
     "schema_system_config": BASE_DIR / "LOCKED" / "CONSTITUTION" / "schema_system_config.json",
-
     "stage_contracts": BASE_DIR / "LOCKED" / "GOVERNANCE" / "stage_contracts.yaml",
     "schema_stage_contracts": BASE_DIR / "LOCKED" / "GOVERNANCE" / "schema_stage_contracts.json",
-
     "addendum_aip": BASE_DIR / "LOCKED" / "AIP" / "addendum_aip.yaml",
     "schema_addendum_aip": BASE_DIR / "LOCKED" / "AIP" / "schema_addendum_aip.json",
-
-    # POLICY
     "worker_allowlist": BASE_DIR / "LOCKED" / "POLICY" / "worker_allowlist.yaml",
     "recovery_policy": BASE_DIR / "LOCKED" / "POLICY" / "recovery_policy.yaml",
-
-    # EVIDENCE
+    "strategy_spec": BASE_DIR / "STRATEGY" / "strategy_spec.yaml",
     "state_file": BASE_DIR / "EVIDENCE" / "STATE" / "state.json",
 }
-
 
 def load_yaml(path: Path) -> dict:
     try:
         with path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
-
         if data is None or not isinstance(data, dict):
             safe_halt(f"YAML_LOAD_INVALID: {path}")
-
         return data
-
-    except SystemExit:
-        raise
-
     except Exception as e:
         safe_halt(f"YAML_LOAD_FAIL: {path}: {e}")
-
 
 def load_json(path: Path) -> dict:
     try:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
-
         if data is None or not isinstance(data, dict):
             safe_halt(f"JSON_LOAD_INVALID: {path}")
-
         return data
-
-    except SystemExit:
-        raise
-
     except Exception as e:
         safe_halt(f"JSON_LOAD_FAIL: {path}: {e}")
 
-
-def init_state():
-
-    try:
-
-        state_path = PATHS["state_file"]
-
-        if not state_path.exists():
-
-            state_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with state_path.open("w", encoding="utf-8") as f:
-
-                json.dump(
-                    {
-                        "status": "INIT",
-                        "last_stage": None
-                    },
-                    f
-                )
-
-    except Exception as e:
-        safe_halt(f"STATE_INIT_FAIL: {e}")
-
-
-def check_policy():
-
-    allowlist = load_yaml(PATHS["worker_allowlist"])
-
-    allowed = allowlist.get("allowed_entrypoints")
-
-    if not isinstance(allowed, list) or len(allowed) < 1:
-        safe_halt("POLICY_INVALID_ALLOWLIST")
-
-    current_entry = os.path.basename(sys.argv[0])
-
-    if current_entry not in allowed:
-        safe_halt(f"POLICY_UNAUTHORIZED_ENTRYPOINT: {current_entry}")
-
-    rp = load_yaml(PATHS["recovery_policy"])
-
-    r = rp.get("recovery_policy")
-
-    if not isinstance(r, dict):
-        safe_halt("POLICY_INVALID_RECOVERY")
-
-    if r.get("mode") != "FAIL_SECURE":
-        safe_halt("POLICY_RECOVERY_MODE_NOT_FAIL_SECURE")
-
-    if r.get("auto_recovery") is not False:
-        safe_halt("POLICY_AUTO_RECOVERY_NOT_FALSE")
-
-
 def validate_schema_all(system_cfg, stage_contracts, aip):
-
     try:
-
         validate(instance=system_cfg, schema=load_json(PATHS["schema_system_config"]))
         validate(instance=stage_contracts, schema=load_json(PATHS["schema_stage_contracts"]))
         validate(instance=aip, schema=load_json(PATHS["schema_addendum_aip"]))
-
     except ValidationError as ve:
         safe_halt(f"SCHEMA_VALIDATION_FAIL: {ve.message}")
-
-    except SystemExit:
-        raise
-
     except Exception as e:
         safe_halt(f"SCHEMA_PROCESSING_FAIL: {e}")
 
+def check_policy():
+    """Zero-Default: check_policy() 준수"""
+    allowlist = load_yaml(PATHS["worker_allowlist"])
+    
+    if "allowed_entrypoints" not in allowlist:
+        safe_halt("POLICY_KEY_MISSING: allowed_entrypoints")
+    
+    allowed = allowlist["allowed_entrypoints"]
+    if not isinstance(allowed, list) or len(allowed) == 0:
+        safe_halt("POLICY_INVALID_ALLOWLIST")
 
-def integrity_guard_init(system_cfg):
+    current_entry = os.path.basename(sys.argv[0])
+    if current_entry not in allowed:
+        safe_halt(f"POLICY_UNAUTHORIZED_ENTRYPOINT: {current_entry}")
 
-    try:
-
-        cfg_str = json.dumps(system_cfg, sort_keys=True, separators=(",", ":"))
-
-        return hashlib.sha256(cfg_str.encode("utf-8")).hexdigest()
-
-    except SystemExit:
-        raise
-
-    except Exception as e:
-        safe_halt(f"INTEGRITY_INIT_FAIL: {e}")
-
-
-def get_stage_map(stage_contracts):
-
-    stages = stage_contracts.get("stages")
-
-    if not isinstance(stages, dict) or len(stages) < 1:
-        safe_halt("STAGE_CONTRACTS_INVALID_STAGES")
-
-    return stages
-
+    rp_root = load_yaml(PATHS["recovery_policy"])
+    if "recovery_policy" not in rp_root:
+        safe_halt("POLICY_KEY_MISSING: recovery_policy")
+    
+    rp = rp_root["recovery_policy"]
+    if "mode" not in rp or "auto_recovery" not in rp:
+        safe_halt("POLICY_RECOVERY_KEYS_MISSING")
+    
+    if rp["mode"] != "FAIL_SECURE" or rp["auto_recovery"] is not False:
+        safe_halt("POLICY_RECOVERY_MODE_VIOLATION")
 
 def execution_cycle(stage_contracts):
+    """Zero-Default & Type Validation 강화"""
+    
+    if "stages" not in stage_contracts:
+        safe_halt("CONTRACT_KEY_MISSING: stages")
+    
+    stages = stage_contracts["stages"]
+    
+    # S3~S7 파이프라인 계약 준수 확인
+    for sid in ["S3", "S4", "S5", "S6", "S7"]:
+        if sid not in stages:
+            safe_halt(f"CONTRACT_STAGE_MISSING: {sid}")
+        # Zero-Default: .get() 제거, on_fail 키 존재 강제 확인
+        if "on_fail" not in stages[sid]:
+            safe_halt(f"CONTRACT_ON_FAIL_MISSING: {sid}")
+        if stages[sid]["on_fail"] != "SAFE_HALT":
+            safe_halt(f"CONTRACT_VIOLATION: {sid} on_fail must be SAFE_HALT")
 
-    stages = get_stage_map(stage_contracts)
+    # S3: Market Data Type Validation
+    market_data = load_market_data()
+    if not isinstance(market_data, list):
+        safe_halt("S3_DATA_TYPE_INVALID: market_data must be a list")
 
-    def _k(stage_id: str):
+    # S4 -> S7 파이프라인 실행
+    filtered_data = apply_regime_filter(market_data)
+    
+    entry_engine = EntryEngine(
+        config_path="STRATEGY/strategy_spec.yaml",
+        contract_path="LOCKED/GOVERNANCE/stage_contracts.yaml"
+    )
+    signals = entry_engine.run(filtered_data)
+    
+    if not signals:
+        return
 
-        if not isinstance(stage_id, str) or not stage_id.startswith("S"):
-            safe_halt(f"STAGE_ID_INVALID: {stage_id}")
-
-        num = stage_id[1:]
-
-        if not num.isdigit():
-            safe_halt(f"STAGE_ID_INVALID: {stage_id}")
-
-        return int(num)
-
-    ordered = sorted(stages.keys(), key=_k)
-
-    for sid in ordered:
-
-        contract = stages.get(sid)
-
-        if not isinstance(contract, dict):
-            safe_halt(f"CONTRACT_INVALID: {sid}")
-
-        if contract.get("on_fail") != "SAFE_HALT":
-            safe_halt(f"CONTRACT_VIOLATION_ON_FAIL: {sid}")
-
-    return
-
+    approved_signals = risk_gate(signals)
+    if approved_signals:
+        execute_orders(approved_signals)
 
 def main():
-
-    # POLICY
     check_policy()
+    
+    config_paths = [str(PATHS[k]) for k in ["system_config", "stage_contracts", "addendum_aip", "worker_allowlist", "recovery_policy"]]
+    schema_paths = [str(PATHS[k]) for k in ["schema_system_config", "schema_stage_contracts", "schema_addendum_aip"]]
+    preflight_gate(config_paths, schema_paths)
 
-    # PREFLIGHT
-    config_files = [
-        str(PATHS["system_config"]),
-        str(PATHS["stage_contracts"]),
-        str(PATHS["addendum_aip"]),
-        str(PATHS["worker_allowlist"]),
-        str(PATHS["recovery_policy"]),
-    ]
-
-    schema_files = [
-        str(PATHS["schema_system_config"]),
-        str(PATHS["schema_stage_contracts"]),
-        str(PATHS["schema_addendum_aip"]),
-    ]
-
-    preflight_gate(config_files, schema_files)
-
-    # STATE INIT
-    init_state()
-
-    # LOAD SSOT
     system_cfg = load_yaml(PATHS["system_config"])
     stage_contracts = load_yaml(PATHS["stage_contracts"])
     aip = load_yaml(PATHS["addendum_aip"])
 
-    # SCHEMA VALIDATION
     validate_schema_all(system_cfg, stage_contracts, aip)
+    
+    cfg_str = json.dumps(system_cfg, sort_keys=True, separators=(",", ":"))
+    locked_hash = hashlib.sha256(cfg_str.encode("utf-8")).hexdigest()
+    IntegrityGuard(str(PATHS["system_config"]), locked_hash).check()
 
-    # INTEGRITY LOCK
-    locked_hash = integrity_guard_init(system_cfg)
-
-    guard = IntegrityGuard(str(PATHS["system_config"]), locked_hash)
-
-    guard.check()
-
-    # EXECUTION
     execution_cycle(stage_contracts)
-
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,11 @@
+# STRATEGY/strategy_spec.yaml
+universe_filters:
+  min_daily_volume: 50000000000  # 50B
+  vol_spike_ratio: 2.0           # current_vol / avg_vol_5
+  vol_expansion_threshold: 0.02  # 변동성 확장 임계치 (예: 2%)
+
+selection_logic:
+  target_count: 2
+  ranking_metric: "daily_volume"
+
+# strategy_parameters: 확정된 파라미터가 없으므로 섹션 전체 삭제 (SSOT 준수)
