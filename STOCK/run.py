@@ -32,19 +32,23 @@ def load_strategy():
 # SCHEDULER
 def scheduler():
     h = datetime.datetime.now().hour
-    if h < 11: return "morning"
-    elif h < 14: return "sideways"
-    else: return "afternoon"
+    if h < 11:
+        return "morning"
+    elif h < 14:
+        return "sideways"
+    else:
+        return "afternoon"
 
 
 # ENTRY
 def entry_engine(strategy_name, strategy_spec):
     strategy = strategy_spec["strategies"].get(strategy_name)
-    if not strategy: return False
+    if not strategy:
+        return False
 
     cond = strategy.get("condition", {})
 
-    # 더미 데이터
+    # 테스트용 더미
     gap = 3
     vol = 800000
     rng = 1.2
@@ -68,10 +72,12 @@ def entry_engine(strategy_name, strategy_spec):
     return False
 
 
-# EXIT (테스트용)
+# EXIT (간단 테스트용)
 def exit_engine(state):
-    if state["position"] != "LONG": return False
-    current_price = 105  # 실제로 바꿀 부분
+    if state["position"] != "LONG":
+        return False
+    # 예: 5% 이상 오르면 청산 (더미)
+    current_price = 102  # 나중에 실제 가격
     if current_price >= state["entry_price"] * 1.05:
         print("청산: +5%")
         return True
@@ -90,7 +96,7 @@ def main():
         if entry_engine(name, spec):
             print("BUY")
             state["position"] = "LONG"
-            state["entry_price"] = 100
+            state["entry_price"] = 100  # 나중에 실제 가격
 
     elif state["position"] == "LONG":
         if exit_engine(state):

@@ -1,0 +1,24 @@
+market: STOCK
+
+strategies:
+
+  morning:
+    name: gap_go
+    time: "09:00-10:00"
+    condition:
+      gap_pct: 2
+      volume_multiplier: 2
+
+  sideways:
+    name: pullback
+    time: "10:00-14:00"
+    condition:
+      vwap_support: true
+      volume_drop: true
+
+  afternoon:
+    name: breakout
+    time: "14:00-15:20"
+    condition:
+      high_break: true
+      volume_spike: true

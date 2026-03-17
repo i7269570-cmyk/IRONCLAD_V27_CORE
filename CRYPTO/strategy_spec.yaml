@@ -1,0 +1,50 @@
+version: 1
+
+strategies:
+
+  gap_breakout:
+    enabled: true
+
+    condition:
+      gap_percent_min: null
+      volume_multiplier_min: null
+      breakout_lookback: null
+
+    entry:
+      order_type: market
+
+    exit:
+      stop_loss_pct: null
+      take_profit_pct: null
+      max_holding_minutes: null
+
+
+  pullback_reversal:
+    enabled: true
+
+    condition:
+      ma_period: null
+      pullback_pct: null
+      volume_multiplier_min: null
+
+    entry:
+      order_type: market
+
+    exit:
+      stop_loss_pct: null
+      take_profit_pct: null
+
+
+  volume_breakout:
+    enabled: true
+
+    condition:
+      volume_multiplier_min: null
+      price_breakout_lookback: null
+
+    entry:
+      order_type: market
+
+    exit:
+      stop_loss_pct: null
+      take_profit_pct: null
