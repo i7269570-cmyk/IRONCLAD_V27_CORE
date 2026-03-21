@@ -1,0 +1,49 @@
+strategy_name: VOL_BREAKOUT_ATR_V1_FINAL
+
+description: >
+  Volume Breakout + ATR 기반 단기 모멘텀 전략.
+  중간 변동성 구간에서 진입하여 2~4% 수익을 빠르게 확보하는 구조.
+
+data_requirements:
+  - price (OHLC)
+  - volume
+  - ATR
+  - avg_volume_20
+
+entry_condition:
+  breakout:
+    condition: "close > rolling_high_20"
+  volume:
+    condition: "volume > avg_volume_20 * 1.5"
+  volatility:
+    condition: "0.010 <= ATR/price <= 0.040"
+
+execution:
+  entry: "next_open"
+  position_type: "long"
+
+exit_condition:
+  take_profit_pct: 0.04
+  stop_loss_pct: -0.02
+  trailing_stop: false
+  max_holding_bars: null
+
+risk_management:
+  max_consecutive_loss: 3
+  volatility_cutoff:
+    condition: "ATR/price > 0.05"
+    action: "block_trade"
+
+position:
+  max_position_per_trade: 1.0
+
+validation:
+  min_trades: 5
+  reject_if:
+    - "total_return <= 0"
+    - "trade_count < 5"
+
+metadata:
+  created_at: "2026-03-18"
+  version: "V1_FINAL"
+  status: "locked"
