@@ -1,0 +1,20 @@
+# =============================================================================
+# IRONCLAD_V30.1_FINAL: RECOVERY_POLICY (recovery_policy.yaml)
+# =============================================================================
+# ROLE: TERMINATION & MANUAL RESTART POLICY
+# PRINCIPLE: ANTI-LOOPING / PREVENT REPETITIVE LOSS
+# =============================================================================
+
+recovery_policy:
+  # SAFE_HALT 발생 후 시스템의 자동 재가동 허용 여부
+  allow_recovery: false
+
+  # 시스템 재작동을 위한 운영자의 물리적/수동 개입 필수 여부
+  restart_required: true
+
+# -----------------------------------------------------------------------------
+# OPERATIONAL IMPACT:
+# 1. ON SAFE_HALT -> IMMEDIATE SYSTEM TERMINATION
+# 2. AUTO-RESTART -> STRICTLY PROHIBITED
+# 3. RESUMPTION -> MANUAL AUDIT & RESET REQUIRED
+# -----------------------------------------------------------------------------

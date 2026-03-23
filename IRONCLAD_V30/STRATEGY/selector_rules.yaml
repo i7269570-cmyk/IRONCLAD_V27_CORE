@@ -1,0 +1,15 @@
+selector_rules:
+  filters:
+    - name: "value_rank"
+      type: "top"
+      field: "value"
+      top_k: 10
+    - name: "volume_spike"
+      type: "ratio"
+      field: "volume"
+      threshold: 2.0
+  ranking:
+    - field: "value"
+      order: "desc"
+    - field: "rate"
+      order: "desc"

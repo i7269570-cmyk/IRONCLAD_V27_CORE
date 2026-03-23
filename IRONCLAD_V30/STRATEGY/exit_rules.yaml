@@ -1,0 +1,5 @@
+# [FIX] exit_engine.py의 참조 방식(rules["take_profit"])과 100% 일치하도록 수정
+exit_rules:
+  stop_loss: -0.02
+  take_profit: 0.04
+  time_exit_minutes: 120

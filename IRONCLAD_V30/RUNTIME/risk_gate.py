@@ -1,48 +1,35 @@
-import os
-import yaml
 import logging
 from typing import Dict, Any
 
 logger = logging.getLogger("IRONCLAD_RUNTIME.RISK_GATE")
 
-def validate_risk_and_size(asset_info: Dict[str, Any], current_state: Dict[str, Any], strategy_path: str) -> Dict[str, Any]:
+def validate_risk_and_size(asset_info: Dict[str, Any], current_state: Dict[str, Any], system_config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    [RISK 해결] 최대 한도, 자산군 중복, 전략 기반 사이징을 수행한다.
+    [FIX] system_config의 max_daily_loss_pct를 참조하여 일일 누적 손실을 차단한다.
     """
-    symbol = asset_info.get("symbol")
-    asset_type = asset_info.get("asset_type")
-    current_positions = current_state.get("positions", [])
-    
-    # [1] 전략 설정 로드 (하드코딩 제거)
     try:
-        rules_path = os.path.join(strategy_path, "risk_rules.yaml")
-        with open(rules_path, 'r', encoding='utf-8') as f:
-            rules = yaml.safe_load(f)
+        limits = system_config["risk_limits"]
         
-        max_pos = rules.get("max_position_limit", 2)
-        unit_size = rules.get("fixed_unit_size", 0.0) # 기본값 0으로 설정하여 설정 강제
-    except Exception as e:
-        raise RuntimeError(f"RISK_GATE_CONFIG_ERROR: {e}")
+        # 1. 일일 누적 손실 검증 (RISK 해결)
+        # state_manager 또는 reconciler에 의해 업데이트된 당일 수익률 참조
+        today_pnl = current_state.get("today_pnl_pct", 0.0)
+        daily_loss_limit = limits["max_daily_loss_pct"]
+        
+        if today_pnl <= -(daily_loss_limit):
+            logger.critical(f"RISK_GATE: Daily loss limit ({daily_loss_limit}) reached. Blocking all entries.")
+            return {"allowed": False, "reason": "DAILY_LOSS_LIMIT_EXCEEDED"}
 
-    # [2] 최대 포지션 수 제한 (2개)
-    if len(current_positions) >= max_pos:
-        logger.warning(f"RISK_GATE: Max position limit ({max_pos}) reached. Blocking {symbol}.")
-        return {"allowed": False, "reason": "MAX_POS_LIMIT"}
+        # 2. 포지션 수 및 비중 제한 검증
+        max_pos = limits["max_positions"]
+        current_positions = current_state.get("positions", [])
+        
+        if len(current_positions) >= max_pos:
+            return {"allowed": False, "reason": "MAX_POSITIONS_EXCEEDED"}
 
-    # [3] 동일 심볼 및 동일 자산군(asset_type) 중복 검사
-    for pos in current_positions:
-        if pos.get("symbol") == symbol:
-            return {"allowed": False, "reason": "DUPLICATE_SYMBOL"}
-        if pos.get("asset_type") == asset_type:
-            logger.warning(f"RISK_GATE: Asset type '{asset_type}' already occupied by {pos.get('symbol')}.")
-            return {"allowed": False, "reason": "DUPLICATE_ASSET_TYPE"}
-
-    # [4] 전략 기반 사이징 산출
-    if unit_size <= 0:
-        return {"allowed": False, "reason": "INVALID_SIZE_CONFIG"}
-
-    return {
-        "allowed": True,
-        "size": unit_size,
-        "reason": "PASS_ALL_RISK_FILTERS"
-    }
+        return {
+            "allowed": True, 
+            "size": limits["max_position_pct"], 
+            "reason": "PASS_SAFETY_LIMITS"
+        }
+    except KeyError as e:
+        raise RuntimeError(f"RISK_GATE_CRITICAL: Missing config key {str(e)}")

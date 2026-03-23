@@ -1,0 +1,21 @@
+# =============================================================================
+# IRONCLAD_V30.1_FINAL: UNIFIED SYSTEM CONFIG (SSOT)
+# =============================================================================
+system:
+  system_id: "IRONCLAD_V30"
+  version: "1.0.0"
+
+risk_limits:
+  max_positions: 2
+  max_position_pct: 0.05
+  max_daily_loss_pct: 0.10      # [연계 필수] 일일 손실 한도
+  max_total_exposure_pct: 0.20  # [연계 필수] 전체 자산 노출 한도
+
+execution_limits:
+  max_slippage_pct: 0.01
+  max_holding_minutes: 120
+
+system_policy:
+  on_violation: "SAFE_HALT"
+  allow_recovery: false         # [통합] 자동 복구 금지
+  restart_required: true        # [통합] 수동 개입 필수

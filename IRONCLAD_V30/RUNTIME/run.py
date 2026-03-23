@@ -6,20 +6,21 @@ from typing import Dict, Any, List
 
 # =============================================================================
 # IRONCLAD_V30.1_FINAL: CORE ORCHESTRATOR (run.py)
-# FIX: AUDIT SEQUENCE, NO_ENTRY MODE, TYPE-SAFE HANDLER, INTEGRITY LOOP
+# FIX: ARGUMENT SYNC, LOGIC CONSOLIDATION, PATH SSOT, ERROR HANDLING
 # =============================================================================
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger("IRONCLAD_RUNTIME")
 
-# [보안 모듈 경로 교정] - GUARDS 디렉터리 경로 명확화
 def setup_guard_path(root_path):
+    """보안 및 리스크 모듈이 위치한 LOCKED/GUARDS 경로를 시스템 패스에 추가한다."""
     guard_path = os.path.join(root_path, "LOCKED", "GUARDS")
     if guard_path not in sys.path:
         sys.path.append(guard_path)
 
 class IroncladEngine:
     def __init__(self):
+        # 1. 경로 설정 (SSOT)
         self.base_path = os.path.dirname(os.path.abspath(__file__))
         self.root_path = os.path.dirname(self.base_path)
         self.paths = {
@@ -27,26 +28,29 @@ class IroncladEngine:
             "STRATEGY": os.path.join(self.root_path, "STRATEGY"),
             "STATE": os.path.join(self.root_path, "STATE"),
             "EVIDENCE": os.path.join(self.root_path, "EVIDENCE"),
-            "RUNTIME": self.base_path
+            "SYSTEM_CONFIG": os.path.join(self.root_path, "LOCKED", "system_config.yaml"),
+            "RECOVERY_POLICY": os.path.join(self.root_path, "LOCKED", "recovery_policy.yaml")
         }
-        # [RISK 해결] 기본값 자동 생성 없이 설정 로드 (실패 시 즉시 RuntimeError)
+        
+        # 2. 시스템 설정 로드 (기본값 없이 강제 로드)
         self.system_config = self._load_config()
         setup_guard_path(self.root_path)
+        self.current_state = {}
 
     def _load_config(self) -> Dict[str, Any]:
-        config_path = os.path.join(self.paths["LOCKED"], "system_config.yaml")
+        """system_config.yaml을 로드하며 실패 시 즉시 중단한다."""
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(self.paths["SYSTEM_CONFIG"], 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
-                if not config: raise ValueError("Empty config")
+                if not config: raise ValueError("EMPTY_CONFIG")
                 return config
         except Exception as e: 
-            raise RuntimeError(f"CONFIG_LOAD_FAILURE: {str(e)}")
+            raise RuntimeError(f"CONFIG_LOAD_FATAL: {str(e)}")
 
     def run(self):
-        """감사 기준 절대 순서(Scheduler -> Loader -> Selector -> Regime -> Entry) 준수"""
-        # [모듈 일괄 임포트]
-        from exception_handler import handle_critical_failure
+        """감사 기준 6단계 공정 및 무결성 루프 실행"""
+        # [모듈 지연 임포트: 경로 의존성 해결 후 로드]
+        from exception_handler import handle_critical_error
         from preflight_gate import run_preflight_checks
         from state_manager import load_state, save_state
         from scheduler import get_current_mode
@@ -63,83 +67,91 @@ class IroncladEngine:
         from position_reconciler import reconcile_positions
         from integrity_guard import IntegrityGuard
 
-        inc_dir = os.path.join(self.paths["EVIDENCE"], "incident")
-        state_path = os.path.join(self.paths["STATE"], "state.json")
+        # 주요 경로 변수
+        state_file_path = os.path.join(self.paths["STATE"], "state.json")
+        evidence_root = self.paths["EVIDENCE"]
 
         try:
-            # [PHASE 1] 초기 검증 및 보안 가동
+            # [PHASE 1] 무결성 및 상태 로드
             run_preflight_checks(self.paths)
             self.guard = IntegrityGuard(self.paths["LOCKED"])
-            self.guard.check() # 1차 무결성 점검
+            self.guard.check() 
             
-            self.current_state = load_state(state_path)
+            self.current_state = load_state(state_file_path)
 
-            # [PHASE 2] 감사 순서 1: SCHEDULER (TRADE/NO_ENTRY/FORCE_EXIT/CLOSED)
+            # [PHASE 2] SCHEDULER: 운영 모드 결정
             mode = get_current_mode()
             if mode == "CLOSED": 
                 logger.info("SYSTEM_HALT: Market is closed.")
                 return
 
-            # [PHASE 3] 전략 파이프라인 (순서: Loader -> Selector -> Regime)
-            # 2. data_loader (Top-N 제한 적용)
+            # [PHASE 3] 진입 파이프라인 (Loader -> Selector -> Regime)
+            # 1. 데이터 로드
             market_data = load_market_data(["STOCK", "CRYPTO"], self.paths["STRATEGY"])
             
-            # 3. selector (후보 압축)
+            # 2. 후보 종목 선정
             candidates = select_candidates(market_data, self.paths["STRATEGY"])
             
-            self.guard.check() # 주요 분기점 무결성 체크
+            self.guard.check() # 분기점 무결성 체크
 
-            # 4. regime_filter (장세 판단)
+            # 3. 장세 필터 및 진입 신호 생성
             if evaluate_market_regime(candidates, self.paths["STRATEGY"]):
                 
-                # 5. entry_engine (신호 생성 - TRADE 모드에서만 신규 진입)
+                # TRADE 모드에서만 신규 진입 수행
                 if mode == "TRADE":
                     raw_signals = generate_signals(candidates, self.paths["STRATEGY"])
                     
-                    # 6. risk_gate (리스크 검증 및 비중 산출)
+                    # 4. 리스크 게이트 (시스템 설정 주입)
                     approved_signals = []
                     for sig in raw_signals:
-                        res = validate_risk_and_size(sig, self.current_state, self.paths["STRATEGY"])
-                        # allowed=True 확인 필수
+                        # [FIX] 주입 동기화: strategy_path 대신 system_config 전달
+                        res = validate_risk_and_size(sig, self.current_state, self.system_config)
+                        
                         if res.get("allowed"):
-                            sig.update({"volume": res.get("size"), "risk_reason": res.get("reason")})
+                            sig.update({
+                                "volume": res.get("size"), 
+                                "risk_reason": res.get("reason")
+                            })
                             approved_signals.append(sig)
 
-                    # 7. pre_order_check (최종 데이터 검증)
-                    final_signals = validate_before_order(approved_signals, mode, self.current_state.get("positions", []), self.system_config)
+                    # 5. 주문 전 최종 검증 (모드 독립 차단 포함)
+                    final_signals = validate_before_order(
+                        approved_signals, 
+                        mode, 
+                        self.current_state.get("positions", []), 
+                        self.system_config
+                    )
 
-                    # 8. order_manager (주문 실행)
+                    # 6. 주문 실행 및 체결 추적
                     if final_signals:
-                        self.guard.check() # 주문 직전 무결성 최종 확인
+                        self.guard.check() 
                         execution_results = execute_orders(final_signals)
                         
-                        # [PHASE 4] 사후 처리 (Fill -> State -> Ledger)
+                        # [PHASE 4] 체결 후속 처리 (Fill -> Ledger)
                         fills = track_fills(execution_results)
-                        save_state(self.current_state, state_path)
-                        record_to_ledger(fills, inc_dir)
+                        # [FIX] ledger_writer 경로 오염 방지 (evidence_root 전달)
+                        record_to_ledger(fills, evidence_root)
             
-            # [PHASE 5] 사후 처리 및 대조
-            from exit_engine import process_exits
-            from position_reconciler import reconcile_positions
-
-            # 12. exit_engine 호출 (순서 준수)
+            # [PHASE 5] 청산 및 상태 동기화 (순서: Exit -> Reconcile)
+            # 7. 청산 엔진 (전략 기반 익절/손절/강제청산 판단)
+            # [FIX] 시그니처 일치: strategy_path 추가 전달
             exit_results = process_exits(mode, self.current_state, self.paths["STRATEGY"])
 
-            # 13. position_reconciler 호출 (SSOT 경로 전달)
-            # [FIX] self.paths["STATE"] 내부의 state.json 경로를 명시적으로 주입
-            state_file_path = os.path.join(self.paths["STATE"], "state.json")
+            # 8. 포지션 리컨실러 (상태 업데이트 및 물리 저장)
+            # [FIX] 시그니처 일치: (state, results, path) 3인자 주입
             self.current_state = reconcile_positions(
                 current_state=self.current_state, 
                 exit_results=exit_results, 
                 state_path=state_file_path
             )           
             
-            self.guard.check() # 사이클 종료 전 무결성 확인
-            logger.info(f"CYCLE_COMPLETE: Mode={mode} | Success.")
+            self.guard.check() # 최종 무결성 확인
+            logger.info(f"CYCLE_COMPLETE: Mode={mode} | Active Positions: {len(self.current_state.get('positions', []))}")
 
         except Exception as e:
-            # [FIX] 타입 일치: paths(dict) 대신 inc_dir(str) 전달
-            handle_critical_failure(reason=str(e), incident_dir=inc_dir)
+            # [FIX] 정책 연계: error context와 paths(dict) 전달하여 정책 집행
+            logger.error(f"RUNTIME_EXCEPTION: {str(e)}")
+            handle_critical_error(str(e), self.paths)
 
 if __name__ == "__main__":
     engine = IroncladEngine()

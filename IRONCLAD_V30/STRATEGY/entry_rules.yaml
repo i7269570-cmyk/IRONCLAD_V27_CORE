@@ -1,0 +1,15 @@
+entry_rules:
+  conditions:
+    - name: "volume_spike"
+      field: "volume"
+      operator: ">="
+      value: "avg_volume * 2"
+    - name: "price_breakout"
+      field: "high"
+      operator: ">"
+      value: "previous_high"
+    - name: "strong_candle"
+      field: "close"
+      operator: ">"
+      value: "open"
+  combine: "AND"

@@ -1,0 +1,13 @@
+strategy:
+  name: "IRONCLAD_CORE"
+  universe:
+    top_n: 50
+    select_n: 3
+  execution:
+    max_concurrent_positions: 2
+  time_policy:
+    trade_start: "09:00"
+    trade_end: "14:50"
+    no_entry_start: "14:50"
+    force_exit_start: "15:00"
+    close_time: "15:30"
