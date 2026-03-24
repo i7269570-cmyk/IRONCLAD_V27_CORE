@@ -1,0 +1,8 @@
+entry:
+  time_filter:
+    start: 090000
+    end: 091500
+
+  conditions:
+    volume_ratio:
+      gte: 2.5
