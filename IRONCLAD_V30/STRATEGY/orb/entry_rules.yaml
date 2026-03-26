@@ -1,0 +1,3 @@
+entry_rules:
+  - name: orb_breakout
+    condition: close > orb_high_10 and volume > volume_ma * 1.8

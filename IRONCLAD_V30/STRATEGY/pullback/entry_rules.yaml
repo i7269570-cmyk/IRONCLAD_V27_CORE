@@ -1,4 +1,4 @@
 entry_rules:
 
   - name: pullback_reentry
-    condition: close > close_prev_1 * 1.001
+    condition: close > close_prev_1 * 1.002

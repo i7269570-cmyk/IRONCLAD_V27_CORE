@@ -28,25 +28,31 @@ for symbol in symbols:
 
         df = clean_stock_data(input_path)
 
-        # ==================== 기본 피처 ====================
+        # 기본 피처
         df["volume_ma"] = df["volume"].rolling(20).mean()
         df["close_prev_1"] = df["close"].shift(1)
+        df["close_prev_5"] = df["close"].shift(5)
+        df["high_prev_1"] = df["high"].shift(1)
+        df["volume_prev_5"] = df["volume"].shift(5)
 
-        # ==================== MomentumVolumeBreakoutStrategy용 ====================
-        df["ma5"] = df["close"].rolling(5).mean()
-        df["ma5_prev"] = df["ma5"].shift(1)
-        df["ma20"] = df["close"].rolling(20).mean()
+        # ORB 피처 (09:00 ~ 09:09)
+        df["time_str"] = df["time"].astype(str).str.zfill(6)
+        df["hhmm"] = df["time_str"].str[:4]
 
-        # ==================== MeanReversionBBStrategy용 ====================
-        df["bb_mid"] = df["ma20"]                                 # 볼린저 중심선 = MA20
-        df["bb_std"] = df["close"].rolling(20).std()
-        df["bb_upper"] = df["bb_mid"] + (df["bb_std"] * 2)
-        df["bb_lower"] = df["bb_mid"] - (df["bb_std"] * 2)
+        orb_mask = (df["hhmm"] >= "0900") & (df["hhmm"] < "0910")
 
-        # ==================== 정리 및 저장 ====================
+        # 날짜별 ORB High / Low 계산
+        df["orb_high_10"] = df[orb_mask].groupby("date")["high"].transform("max")
+        df["orb_low_10"] = df[orb_mask].groupby("date")["low"].transform("min")
+
+        # 이후 봉까지 forward fill
+        df["orb_high_10"] = df.groupby("date")["orb_high_10"].ffill()
+        df["orb_low_10"] = df.groupby("date")["orb_low_10"].ffill()
+
+        # 결측치 제거
         df = df.dropna().reset_index(drop=True)
+
+        # 저장
         df.to_csv(output_path, index=False)
 
     print(f"완료: {symbol}")
-
-print("\n모든 종목 feature 추가 완료!")

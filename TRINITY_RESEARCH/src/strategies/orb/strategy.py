@@ -1,13 +1,17 @@
-class PullbackStrategy:
-
+class ORBStrategy:
     def on_bar(self, row, position):
         if position is not None:
             return None
 
-        close = row.get("close", 0)
-        prev_close_1 = row.get("close_prev_1", 0)
+        t = int(row.get("time", 0))
 
-        if close > prev_close_1 * 1.002:
+        # 09:00~09:10 Range 형성 중에는 진입 금지
+        if 90000 <= t <= 91000:
+            return None
+
+        # 상단 돌파 + 거래량 확인
+        if (row.get("close", 0) > row.get("orb_high", 0) and 
+            row.get("volume", 0) > row.get("volume_ma", 0) * 1.8):
             return "BUY"
 
         return None

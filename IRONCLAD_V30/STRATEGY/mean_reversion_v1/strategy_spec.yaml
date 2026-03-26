@@ -1,0 +1,5 @@
+strategy:
+  name: MeanReversionBBStrategy_V1
+  version: 1.0
+  description: "RSI 과매도 및 BB 하단 이탈 후 반등 포착 전략 (PF 2.35)"
+  base_indicators: [rsi, bb_lower, bb_middle]

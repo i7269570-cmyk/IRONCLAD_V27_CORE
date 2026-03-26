@@ -1,0 +1,15 @@
+selector_rules:
+  # 1. 유니버스 (필터링 대상)
+  universe:
+    metric: value         # 거래대금 기준
+    top_n: 100            # 상위 100개 종목 중에서만 선별 (유동성 확보)
+
+  # 2. 랭킹 기준 (우선순위)
+  ranking:
+    - field: rsi          # RSI가 낮은 순서 (과매도 종목 우선)
+      order: asc
+    - field: value        # 거래대금이 높은 순서 우선
+      order: desc
+
+  # 3. 최종 선택
+  top_k: 5                # 동시에 최대 5개 종목까지만 전략 실행
