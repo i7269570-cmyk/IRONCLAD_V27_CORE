@@ -1,31 +1,57 @@
 class MeanReversionBBStrategy:
-    TAKE_PROFIT = 0.015   # ¸ñÇ¥ ¼öÀÍ 1.5%
-    STOP_LOSS   = 0.010   # ¼ÕÀı 1.0%
-    MAX_HOLD    = 5       # ¹İµîÀº ºü¸£°Ô Á¾·á
+    TAKE_PROFIT = 0.015   # ëª©í‘œ ìˆ˜ìµ 1.5%
+    STOP_LOSS   = 0.010   # ì†ì ˆ 1.0%
+    MAX_HOLD    = 5       # ìµœëŒ€ ë³´ìœ  5ë´‰
 
     def on_bar(self, row, position):
-        if position is not None: return None
+        if position is not None:
+            return None
+
         try:
-            # 1. °ËÁõµÈ °ú¸Åµµ ÇÊÅÍ: RSI 35 ¹Ì¸¸ & BB ÇÏ´Ü ÀÌÅ»
-            if row['rsi'] < 35 and row['close'] < row['bb_lower']:
-                # 2. ¹İµî È®ÀÎ: ÀúÁ¡ ´ëºñ 0.5% ¹İµî ½Ã Á¤¹Ğ ÁøÀÔ
+            # --- 1. ì¶”ì„¸ í•„í„° (í•„ìˆ˜ ì¶”ê°€)
+            if row['close'] < row['ma20'] * 0.97:
+                return None
+
+            # --- 2. ê³¼ë§¤ë„ + BB í•˜ë‹¨ (ë…¸ì´ì¦ˆ ì œê±°)
+            if row['rsi'] < 35 and row['close'] <= row['bb_lower'] * 0.995:
+
+                # --- 3. ë°˜ë“± í™•ì¸ (í•µì‹¬ ìœ ì§€)
                 if row['close'] > (row['low'] * 1.005):
                     return "BUY"
-        except: return None
+
+        except:
+            return None
+
         return None
 
     def on_position(self, row, position):
-        if position is None: return None
+        if position is None:
+            return None
+
         try:
             pnl = (row["close"] - position["entry_price"]) / position["entry_price"]
-            
-            # [Ãß°¡] °­È­µÈ ÀÍÀı ·ÎÁ÷: BB Áß¾Ó¼± µµ´Ş ½Ã ¶Ç´Â 0.8% ¼öÀÍ ÈÄ À½ºÀ ½Ã Å»Ãâ
-            if row['close'] >= row['bb_middle'] or (pnl >= 0.008 and row['close'] < row['open']):
+            hold = position.get("hold_bars", 0)
+
+            # --- 1ìˆœìœ„: BB ì¤‘ì•™ì„  ë„ë‹¬ (Mean Reversion ì™„ë£Œ)
+            if row['close'] >= row['bb_middle']:
                 return "EXIT"
 
-            if pnl >= self.TAKE_PROFIT or pnl <= -self.STOP_LOSS or position.get("hold_bars", 0) >= self.MAX_HOLD:
+            # --- 2ìˆœìœ„: ëª©í‘œ ìˆ˜ìµ ë„ë‹¬
+            if pnl >= self.TAKE_PROFIT:
                 return "EXIT"
-            
-            position["hold_bars"] = position.get("hold_bars", 0) + 1
-        except: return None
+
+            # --- 3ìˆœìœ„: ì‹œê°„ ì¢…ë£Œ
+            if hold >= self.MAX_HOLD:
+                return "EXIT"
+
+            # --- 4ìˆœìœ„: ì†ì ˆ
+            if pnl <= -self.STOP_LOSS:
+                return "EXIT"
+
+            # --- ë³´ìœ  ì‹œê°„ ì¦ê°€
+            position["hold_bars"] = hold + 1
+
+        except:
+            return None
+
         return None
