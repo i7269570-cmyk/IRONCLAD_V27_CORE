@@ -1,0 +1,17 @@
+top_n_limit: 50
+
+data:
+
+  sources:
+    - type: STOCK
+
+  timeframe:
+    unit: minute
+    interval: 1
+
+  fields:
+    - open
+    - high
+    - low
+    - close
+    - volume

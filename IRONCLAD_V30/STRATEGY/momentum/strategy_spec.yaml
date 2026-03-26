@@ -1,0 +1,3 @@
+strategy:
+  name: momentum_strategy
+  version: 1.0
