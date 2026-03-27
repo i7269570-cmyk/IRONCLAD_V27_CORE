@@ -1,0 +1,11 @@
+# IRONCLAD_V30 데이터 통제 규칙 (수정본)
+
+# [교정] 감사 지침 §5 준수: 300 -> 50으로 상한선 하향 [cite: 2026-03-28]
+top_n_limit: 50           
+
+allow_assets:
+  - STOCK
+  - CRYPTO
+
+# [추가] 데이터 로드 시 기본 자산 타입 지정 (RISK 제거) [cite: 2026-03-28]
+default_asset_type: "STOCK"

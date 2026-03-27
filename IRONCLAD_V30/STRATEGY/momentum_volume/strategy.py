@@ -1,22 +1,24 @@
-class MeanReversionBBStrategy:
-    TAKE_PROFIT = 0.015   # ∏Ò«• ºˆ¿Õ 1.5%
-    STOP_LOSS   = 0.010   # º’¿˝ 1.0%
-    MAX_HOLD    = 5       # √÷¥Î ∫∏¿Ø 5∫¿
+class MomentumVolumeBreakoutStrategy:
+
+    TAKE_PROFIT = 0.012   # Îπ†Î•∏ ÏùµÏ†à
+    STOP_LOSS   = 0.012   # Î¶¨Ïä§ÌÅ¨ ÎèôÏùº
+    MAX_HOLD    = 4
 
     def on_bar(self, row, position):
+
         if position is not None:
             return None
 
         try:
-            # --- 1. √ﬂºº « ≈Õ (« ºˆ √ﬂ∞°)
-            if row['close'] < row['ma20'] * 0.97:
+            # --- Ï∂îÏÑ∏ ÏôÑÌôî
+            if row['close'] < row['ma20'] * 0.95:
                 return None
 
-            # --- 2. ∞˙∏≈µµ + BB «œ¥‹ (≥Î¿Ã¡Ó ¡¶∞≈)
-            if row['rsi'] < 35 and row['close'] <= row['bb_lower'] * 0.995:
+            # --- Í≥ºÎß§ÎèÑ ÏôÑÌôî
+            if row['rsi'] <= 40 and row['close'] <= row['bb_lower']:
 
-                # --- 3. π›µÓ »Æ¿Œ («ŸΩ… ¿Ø¡ˆ)
-                if row['close'] > (row['low'] * 1.005):
+                # --- Î∞òÎì± ÏôÑÌôî
+                if row['close'] > (row['low'] * 1.003):
                     return "BUY"
 
         except:
@@ -24,7 +26,9 @@ class MeanReversionBBStrategy:
 
         return None
 
+
     def on_position(self, row, position):
+
         if position is None:
             return None
 
@@ -32,23 +36,18 @@ class MeanReversionBBStrategy:
             pnl = (row["close"] - position["entry_price"]) / position["entry_price"]
             hold = position.get("hold_bars", 0)
 
-            # --- 1º¯¿ß: BB ¡ﬂæ”º± µµ¥ﬁ (Mean Reversion øœ∑·)
             if row['close'] >= row['bb_middle']:
                 return "EXIT"
 
-            # --- 2º¯¿ß: ∏Ò«• ºˆ¿Õ µµ¥ﬁ
             if pnl >= self.TAKE_PROFIT:
                 return "EXIT"
 
-            # --- 3º¯¿ß: Ω√∞£ ¡æ∑·
-            if hold >= self.MAX_HOLD:
-                return "EXIT"
-
-            # --- 4º¯¿ß: º’¿˝
             if pnl <= -self.STOP_LOSS:
                 return "EXIT"
 
-            # --- ∫∏¿Ø Ω√∞£ ¡ı∞°
+            if hold >= self.MAX_HOLD:
+                return "EXIT"
+
             position["hold_bars"] = hold + 1
 
         except:

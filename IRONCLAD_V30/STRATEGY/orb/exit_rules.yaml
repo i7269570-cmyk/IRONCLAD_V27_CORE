@@ -1,4 +1,0 @@
-exit_rules:
-  take_profit: 0.006
-  stop_loss: -0.003
-  max_hold_bars: 3

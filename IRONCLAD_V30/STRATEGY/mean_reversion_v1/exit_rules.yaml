@@ -1,9 +1,0 @@
-exit:
-  take_profit:
-    pct: 0.015         # 목표 수익 1.5%
-  stop_loss:
-    pct: -0.010        # 손절 -1.0%
-  max_hold:
-    bars: 5            # 최대 5개 봉 보유
-  trailing_exit:
-    profit_trigger: 0.008 # 0.8% 수익 후 음봉 시 조기 청산

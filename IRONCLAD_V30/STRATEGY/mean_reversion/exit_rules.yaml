@@ -1,0 +1,15 @@
+exit:
+  bb_middle_exit:
+    enabled: true      # BB 중앙선 도달 시 청산
+
+  take_profit:
+    pct: 0.015
+
+  stop_loss:
+    pct: -0.010
+
+  max_hold:
+    bars: 5
+
+  trailing_exit:
+    profit_trigger: 0.008
