@@ -1,0 +1,9 @@
+selection_criteria:
+  min_change_rate: 0
+
+weights:
+  value: 0.5
+  change_rate: 0.5
+
+min_selection_count: 50
+max_selection_count: 50

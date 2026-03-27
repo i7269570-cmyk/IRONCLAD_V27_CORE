@@ -1,17 +1,7 @@
 top_n_limit: 50
 
-data:
+allow_assets:
+  - STOCK
+  - CRYPTO
 
-  sources:
-    - type: STOCK
-
-  timeframe:
-    unit: minute
-    interval: 1
-
-  fields:
-    - open
-    - high
-    - low
-    - close
-    - volume
+default_asset_type: STOCK
