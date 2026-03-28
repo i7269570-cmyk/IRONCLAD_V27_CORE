@@ -15,29 +15,37 @@ class BacktestEngine:
         cash = self.initial_cash
         position = None
 
-        data = data.sort_values(["symbol", "date", "time"])
+        data = data.sort_values(["symbol", "date", "time"]).reset_index(drop=True)
 
-        for idx, row in data.iterrows():
-            
+        rows = data.to_dict("records")
+
+        for i in range(len(rows) - 1):
+
+            row = rows[i]
+            next_row = rows[i + 1]
+
+            # -----------------
+            # 진입 신호
+            # -----------------
             signal = self.strategy.on_bar(row, position)
-            
-            # -----------------
-            # 진입
-            # -----------------
+
             if position is None and signal == "BUY":
 
-                entry_price = row["close"]
+                # 🔥 다음 봉 시가로 진입
+                entry_price = next_row["open"]* 1.003
 
                 position = {
                     "entry_price": entry_price,
-                    "entry_time": (row["date"], row["time"]),
+                    "entry_time": (next_row["date"], next_row["time"]),
                     "bars_held": 0
                 }
+
+                continue  # 같은 봉에서 exit 방지
 
             # -----------------
             # 보유 중
             # -----------------
-            elif position is not None:
+            if position is not None:
 
                 position["bars_held"] += 1
 
@@ -45,9 +53,11 @@ class BacktestEngine:
 
                 if exit_signal is not None:
 
-                    exit_price = row["close"]
+                    # 🔥 다음 봉 시가로 청산
+                    exit_price = next_row["open"] * 0.997
 
                     pnl = (exit_price - position["entry_price"]) / position["entry_price"]
+                    pnl = pnl - 0.002
 
                     cash = cash * (1 + pnl)
 

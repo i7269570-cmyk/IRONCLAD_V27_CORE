@@ -1,15 +1,10 @@
-exit:
-  bb_middle_exit:
-    enabled: true      # BB 중앙선 도달 시 청산
+type: exit
 
-  take_profit:
-    pct: 0.015
+conditions:
+  - field: profit
+    op: ">="
+    value: 0.003
 
-  stop_loss:
-    pct: -0.010
-
-  max_hold:
-    bars: 5
-
-  trailing_exit:
-    profit_trigger: 0.008
+  - field: profit
+    op: "<="
+    value: -0.005

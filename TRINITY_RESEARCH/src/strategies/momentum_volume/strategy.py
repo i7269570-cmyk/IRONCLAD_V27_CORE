@@ -15,10 +15,10 @@ class MomentumVolumeBreakoutStrategy:
                 return None
 
             # --- 과매도 완화
-            if row['rsi'] <= 40 and row['close'] <= row['bb_lower']:
+            if row['rsi'] <= 50 and row['close'] <= row['bb_lower']* 1.02:
 
                 # --- 반등 완화
-                if row['close'] > (row['low'] * 1.003):
+                if row['close'] > (row['low'] * 1.001):
                     return "BUY"
 
         except:

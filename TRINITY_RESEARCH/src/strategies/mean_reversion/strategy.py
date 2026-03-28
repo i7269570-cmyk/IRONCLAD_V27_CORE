@@ -13,7 +13,7 @@ class MeanReversionBBStrategy:
                 return None
 
             # --- 2. 과매도 + BB 하단 (노이즈 제거)
-            if row['rsi'] < 35 and row['close'] <= row['bb_lower'] * 0.995:
+            if row['rsi'] < 45 and row['close'] <= row['bb_lower'] * 1.01:
 
                 # --- 3. 반등 확인 (핵심 유지)
                 if row['close'] > (row['low'] * 1.005):

@@ -1,8 +1,10 @@
-entry:
-  conditions:
-    rsi:
-      lte: 35          # RSI 35 이하 (과매도)
-    bb_filter:
-      below_lower: true # 볼린저 밴드 하단 이탈 확인
-    rebound_ratio:
-      gte: 1.005       # 저가 대비 0.5% 반등 시 진입
+type: entry
+
+conditions:
+  - field: rsi
+    op: "<="
+    value: 50
+
+  - field: close
+    op: "<="
+    value: "bb_lower * 1.02"
