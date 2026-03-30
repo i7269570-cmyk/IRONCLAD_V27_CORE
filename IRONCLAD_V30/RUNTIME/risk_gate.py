@@ -1,35 +1,76 @@
-import logging
-from typing import Dict, Any
-
-logger = logging.getLogger("IRONCLAD_RUNTIME.RISK_GATE")
-
-def validate_risk_and_size(asset_info: Dict[str, Any], current_state: Dict[str, Any], system_config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    [FIX] system_config의 max_daily_loss_pct를 참조하여 일일 누적 손실을 차단한다.
-    """
+def validate_risk_and_size(signal, state, system_config):
     try:
-        limits = system_config["risk_limits"]
-        
-        # 1. 일일 누적 손실 검증 (RISK 해결)
-        # state_manager 또는 reconciler에 의해 업데이트된 당일 수익률 참조
-        today_pnl = current_state.get("today_pnl_pct", 0.0)
-        daily_loss_limit = limits["max_daily_loss_pct"]
-        
-        if today_pnl <= -(daily_loss_limit):
-            logger.critical(f"RISK_GATE: Daily loss limit ({daily_loss_limit}) reached. Blocking all entries.")
-            return {"allowed": False, "reason": "DAILY_LOSS_LIMIT_EXCEEDED"}
+        total_capital = state.get("capital", {}).get("total", 0)
 
-        # 2. 포지션 수 및 비중 제한 검증
-        max_pos = limits["max_positions"]
-        current_positions = current_state.get("positions", [])
-        
-        if len(current_positions) >= max_pos:
-            return {"allowed": False, "reason": "MAX_POSITIONS_EXCEEDED"}
+        if total_capital <= 0:
+            return {"allowed": False, "reason": "NO_CAPITAL"}
 
+        asset_type = signal.get("asset_type")
+        entry_price = signal.get("price")
+
+        if not entry_price or entry_price <= 0:
+            return {"allowed": False, "reason": "INVALID_PRICE"}
+
+        # =========================
+        # 1. 포지션 제한
+        # =========================
+        positions = list(state.get("positions", {}).values())  # ✅ 수정된 부분
+
+        if len(positions) >= 2:
+            return {"allowed": False, "reason": "MAX_POSITIONS"}
+
+        for p in positions:
+            if p.get("asset_type") == asset_type:
+                return {"allowed": False, "reason": "SAME_ASSET_BLOCK"}
+
+        # =========================
+        # 2. 자금 버킷
+        # =========================
+        if asset_type == "STOCK":
+            bucket_cap = state.get("capital", {}).get("stock_alloc", 0)
+        else:
+            bucket_cap = state.get("capital", {}).get("crypto_alloc", 0)
+
+        if bucket_cap <= 0:
+            return {"allowed": False, "reason": "NO_BUCKET"}
+
+        # =========================
+        # 3. 리스크 계산
+        # =========================
+        risk_amount = total_capital * 0.005
+
+        # ⚠️ ATR 연결 전 임시 (추후 교체)
+        atr_stop = entry_price * 0.01
+
+        if atr_stop <= 0:
+            return {"allowed": False, "reason": "INVALID_STOP"}
+
+        qty = risk_amount / atr_stop
+        position_value = qty * entry_price
+
+        # =========================
+        # 4. 버킷 제한
+        # =========================
+        if position_value > bucket_cap:
+            qty = bucket_cap / entry_price
+
+        # =========================
+        # 5. 최소 수량
+        # =========================
+        lot_size = 1
+        qty = (qty // lot_size) * lot_size
+
+        if qty <= 0:
+            return {"allowed": False, "reason": "QTY_ZERO"}
+
+        # =========================
+        # 6. 통과
+        # =========================
         return {
-            "allowed": True, 
-            "size": limits["max_position_pct"], 
-            "reason": "PASS_SAFETY_LIMITS"
+            "allowed": True,
+            "size": qty,
+            "reason": "OK"
         }
-    except KeyError as e:
-        raise RuntimeError(f"RISK_GATE_CRITICAL: Missing config key {str(e)}")
+
+    except Exception as e:
+        return {"allowed": False, "reason": f"ERROR: {str(e)}"}

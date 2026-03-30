@@ -59,6 +59,9 @@ class IroncladEngine:
         from position_reconciler import reconcile_positions
         from integrity_guard import IntegrityGuard
 
+        # ✅ 추가
+        from daily_setup import run_daily_setup
+
         state_file_path = os.path.join(self.paths["STATE"], "state.json")
 
         evidence_root = os.path.join(self.paths["EVIDENCE"], "incident")
@@ -72,13 +75,29 @@ class IroncladEngine:
 
             self.current_state = load_state(state_file_path)
 
+            # ✅ DAILY SETUP (아침 1회 실행)
+            total_capital = self.current_state.get("capital", {}).get("total", 10000000)
+
+            # TODO: selector 연결 전 임시값
+            stock_symbols = ["A", "B", "C"]
+            crypto_symbols = ["BTC", "ETH", "XRP"]
+
+            run_daily_setup(
+                total_capital=total_capital,
+                stock_symbols=stock_symbols,
+                crypto_symbols=crypto_symbols
+            )
+
+            # 반드시 다시 로드
+            self.current_state = load_state(state_file_path)
+
             # PHASE 2
             mode = get_current_mode()
             if mode == "CLOSED":
                 logger.info("SYSTEM_HALT: Market is closed.")
                 return
 
-            # PHASE 3 (Loader → Selector → Entry)
+            # PHASE 3
             market_data = load_market_data(["STOCK", "CRYPTO"], self.paths["STRATEGY"])
             candidates = select_candidates(market_data, self.paths["STRATEGY"])
 
@@ -87,7 +106,11 @@ class IroncladEngine:
             if evaluate_market_regime(candidates, self.paths["STRATEGY"]):
 
                 if mode == "TRADE":
-                    raw_signals = generate_signals(candidates, self.paths["STRATEGY"])
+                    raw_signals = generate_signals(
+                        candidates,
+                        self.paths["STRATEGY"],
+                        self.current_state
+                    )
 
                     approved_signals = []
                     for sig in raw_signals:
@@ -111,17 +134,15 @@ class IroncladEngine:
                         self.guard.check()
                         execution_results = execute_orders(final_signals)
 
-                        # PHASE 4 (Fill → Ledger → State)
-                        fills = track_fills(execution_results)
+                        fills = track_fills(execution_results, self.current_state)
 
                         if not isinstance(fills, list):
                             raise TypeError("FILL_TRACKER_OUTPUT_INVALID")
 
-                        # ⭐ 순서 고정 (감사 핵심)
                         record_to_ledger(fills, evidence_root)
                         save_state(self.current_state, state_file_path)
 
-            # PHASE 5 (Exit → Reconcile → State)
+            # PHASE 5
             exit_results = process_exits(mode, self.current_state, self.paths["STRATEGY"])
 
             self.current_state = reconcile_positions(

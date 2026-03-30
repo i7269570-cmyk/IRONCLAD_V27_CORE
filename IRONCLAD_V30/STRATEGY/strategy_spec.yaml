@@ -1,6 +1,20 @@
+daily_setup:
+  run_once_at: "08:00"
+
 capital_split:
-  stock: 0.50
-  crypto: 0.50
+  stock: 0.45
+  crypto: 0.45
+
+universe:
+  stock:
+    count: 3
+    select_once_daily: true
+
+  crypto:
+    count: 3
+    select_once_daily: true
+
+  intraday_change_allowed: false
 
 risk_model:
   type: fixed_fractional
@@ -26,3 +40,10 @@ reentry:
 
 filters:
   regime_filter_required: true
+
+strategies:
+  - name: mean_reversion
+    enabled: true
+
+  - name: breakout
+    enabled: true

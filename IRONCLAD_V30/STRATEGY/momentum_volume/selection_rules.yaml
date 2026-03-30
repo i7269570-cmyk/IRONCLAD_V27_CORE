@@ -1,11 +1,10 @@
 selector_rules:
-  
   universe:
     metric: value
-    top_n: 50
+    top_n: 100
 
   ranking:
-    - field: change_rate
+    - field: value
       order: desc
 
   top_k: 3

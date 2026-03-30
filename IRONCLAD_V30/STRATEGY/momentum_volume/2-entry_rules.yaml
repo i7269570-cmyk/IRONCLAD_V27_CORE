@@ -3,16 +3,16 @@ type: entry
 conditions:
   - field: close
     op: ">="
-    value: "ma20 * 0.97"
+    value: "ma20 * 0.975"
 
   - field: rsi
     op: "<="
-    value: 35
+    value: 40
 
   - field: close
     op: "<="
-    value: "bb_lower * 0.995"
+    value: "bb_lower * 1.008"
 
   - field: close
     op: ">"
-    value: "low * 1.005"
+    value: "low * 1.01"

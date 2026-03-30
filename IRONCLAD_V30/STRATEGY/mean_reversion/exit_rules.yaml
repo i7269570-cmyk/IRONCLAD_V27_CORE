@@ -1,10 +1,18 @@
 type: exit
 
 conditions:
+  - field: close
+    op: ">="
+    value: "bb_middle"
+
   - field: profit
     op: ">="
-    value: 0.003
+    value: 0.015
 
   - field: profit
     op: "<="
-    value: -0.005
+    value: -0.01
+
+  - field: hold_bars
+    op: ">="
+    value: 5

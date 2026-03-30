@@ -1,3 +1,5 @@
 strategy:
-  name: momentum_strategy
-  version: 1.0
+  name: MomentumVolumeBreakoutStrategy
+  version: 2.0
+  description: "Momentum + BB + RSI 완화 전략 (V29)"
+  base_indicators: [rsi, bb_lower, bb_middle, ma20]

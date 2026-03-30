@@ -1,7 +1,7 @@
 # =========================
-# D: 기존  -메인전략
+# A: 기존  -메인전략
 # =========================
-class MeanReversionBBStrategy_D:
+class MeanReversionBBStrategy_A:
     TAKE_PROFIT = 0.015
     STOP_LOSS   = 0.010
     MAX_HOLD    = 5
@@ -43,9 +43,9 @@ class MeanReversionBBStrategy_D:
 
 
 # =========================
-# E: 중간 (추천 후보)-탈락
+# B: 중간 (추천 후보)-탈락
 # =========================
-class MeanReversionBBStrategy_E:
+class MeanReversionBBStrategy_B:
     TAKE_PROFIT = 0.015
     STOP_LOSS   = 0.010
     MAX_HOLD    = 5
@@ -87,9 +87,9 @@ class MeanReversionBBStrategy_E:
 
 
 # =========================
-# F: 강화 (현재 최고)-보조전략
+# C: 강화 (현재 최고)-보조전략
 # =========================
-class MeanReversionBBStrategy_F:
+class MeanReversionBBStrategy_C:
     TAKE_PROFIT = 0.015
     STOP_LOSS   = 0.010
     MAX_HOLD    = 5
@@ -128,3 +128,5 @@ class MeanReversionBBStrategy_F:
 
         position["hold_bars"] = hold + 1
         return None
+        
+        
