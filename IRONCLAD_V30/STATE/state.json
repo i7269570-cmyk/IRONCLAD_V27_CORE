@@ -1,14 +1,60 @@
 {
-  "date": "",
   "capital": {
-    "total": 0,
-    "stock_alloc": 0,
-    "crypto_alloc": 0
+    "total": 10000000,
+    "stock_alloc": -3882200.0,
+    "crypto_alloc": -4470659.4706
+  },
+  "positions": {
+    "005930.KS": {
+      "symbol": "005930.KS",
+      "asset_type": "STOCK",
+      "entry_price": 167200.0,
+      "size": 26.0,
+      "entry_time": "2026-03-31T15:04:08.658519",
+      "current_price": 167200.0,
+      "hold_bars": 0
+    },
+    "000660.KS": {
+      "symbol": "000660.KS",
+      "asset_type": "STOCK",
+      "entry_price": 807000.0,
+      "size": 5.0,
+      "entry_time": "2026-03-31T15:04:08.658563",
+      "current_price": 807000.0,
+      "hold_bars": 0
+    },
+    "BTC/USDT": {
+      "symbol": "BTC/USDT",
+      "asset_type": "CRYPTO",
+      "entry_price": 66726.27,
+      "size": 67.0,
+      "entry_time": "2026-03-31T15:04:08.658598",
+      "current_price": 66726.27,
+      "hold_bars": 0
+    },
+    "USDC/USDT": {
+      "symbol": "USDC/USDT",
+      "asset_type": "CRYPTO",
+      "entry_price": 1.0006,
+      "size": 4497301.0,
+      "entry_time": "2026-03-31T15:04:08.658629",
+      "current_price": 1.0006,
+      "hold_bars": 0
+    }
   },
   "symbols": {
-    "stock": [],
-    "crypto": []
+    "stock": [
+      "A",
+      "B",
+      "C"
+    ],
+    "crypto": [
+      "BTC",
+      "ETH",
+      "XRP"
+    ]
   },
-  "positions": {},
-  "cooldown": {}
+  "date": "2026-03-31",
+  "cooldown": {},
+  "last_reconciled": "2026-03-31T23:59:40.983478"
 }

@@ -18,13 +18,13 @@ def load_market_data(asset_types: List[str], strategy_path: str) -> List[Dict[st
             raise ValueError("MISSING_default_asset_type")
 
         # CSV 경로
-        csv_path = os.path.normpath(
-            os.path.join(strategy_path, "..", "..", "data", "target_100.csv")
-        )
+        # CSV 경로 (수정)
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        csv_path = os.path.join(BASE_DIR, "data", "target_100.csv")
 
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"TARGET_CSV_MISSING: {csv_path}")
-
+  
         df = pd.read_csv(csv_path)
 
         # ⭐ 컬럼 검증 (고정 4개만)

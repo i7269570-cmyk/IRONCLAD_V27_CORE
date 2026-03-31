@@ -1,9 +1,33 @@
-selection_criteria:
-  min_change_rate: 0
+# =========================
+# 🔵 종목 선정 규칙 (공통)
+# =========================
 
 weights:
-  value: 0.5
-  change_rate: 0.5
+  change_rate: 0.6
+  value: 0.4
 
-min_selection_count: 50
-max_selection_count: 50
+selector_rules:
+
+  # =========================
+  # 🔵 유니버스 정의
+  # =========================
+  universe:
+    metric: value          # 거래대금 기준
+    top_n: 100             # 상위 100개만
+
+  # =========================
+  # 🔵 랭킹 기준
+  # =========================
+  ranking:
+    - field: change_rate   # 상승률 우선
+      order: desc
+
+    - field: value         # 거래대금
+      order: desc
+
+  # =========================
+  # 🔵 최종 선택 개수
+  # =========================
+  top_k:
+    stock: 2
+    crypto: 2

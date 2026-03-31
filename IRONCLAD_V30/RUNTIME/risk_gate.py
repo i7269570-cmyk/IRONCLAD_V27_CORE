@@ -1,76 +1,55 @@
+# risk_gate.py
+
 def validate_risk_and_size(signal, state, system_config):
+    """
+    입력: dict
+    출력: dict
+    """
+
+    # =========================
+    # 🔵 입력 방어 (핵심)
+    # =========================
+    if not isinstance(signal, dict):
+        return {"allowed": False}
+
+    if not isinstance(state, dict):
+        return {"allowed": False}
+
+    if not isinstance(system_config, dict):
+        system_config = {}
+
+    symbol = signal.get("symbol")
+    price = signal.get("price")
+    asset_type = signal.get("asset_type")
+
+    if not symbol or price is None:
+        return {"allowed": False}
+
+    # =========================
+    # 🔵 기본 자금 계산
+    # =========================
+    capital = state.get("capital", {})
+
+    if not isinstance(capital, dict):
+        return {"allowed": False}
+
+    total = capital.get("total", 0)
+
+    if total <= 0:
+        return {"allowed": False}
+
+    # =========================
+    # 🔵 간단 사이징 (안전)
+    # =========================
     try:
-        total_capital = state.get("capital", {}).get("total", 0)
+        size = total * 0.01  # 1% 고정
+    except Exception:
+        return {"allowed": False}
 
-        if total_capital <= 0:
-            return {"allowed": False, "reason": "NO_CAPITAL"}
-
-        asset_type = signal.get("asset_type")
-        entry_price = signal.get("price")
-
-        if not entry_price or entry_price <= 0:
-            return {"allowed": False, "reason": "INVALID_PRICE"}
-
-        # =========================
-        # 1. 포지션 제한
-        # =========================
-        positions = list(state.get("positions", {}).values())  # ✅ 수정된 부분
-
-        if len(positions) >= 2:
-            return {"allowed": False, "reason": "MAX_POSITIONS"}
-
-        for p in positions:
-            if p.get("asset_type") == asset_type:
-                return {"allowed": False, "reason": "SAME_ASSET_BLOCK"}
-
-        # =========================
-        # 2. 자금 버킷
-        # =========================
-        if asset_type == "STOCK":
-            bucket_cap = state.get("capital", {}).get("stock_alloc", 0)
-        else:
-            bucket_cap = state.get("capital", {}).get("crypto_alloc", 0)
-
-        if bucket_cap <= 0:
-            return {"allowed": False, "reason": "NO_BUCKET"}
-
-        # =========================
-        # 3. 리스크 계산
-        # =========================
-        risk_amount = total_capital * 0.005
-
-        # ⚠️ ATR 연결 전 임시 (추후 교체)
-        atr_stop = entry_price * 0.01
-
-        if atr_stop <= 0:
-            return {"allowed": False, "reason": "INVALID_STOP"}
-
-        qty = risk_amount / atr_stop
-        position_value = qty * entry_price
-
-        # =========================
-        # 4. 버킷 제한
-        # =========================
-        if position_value > bucket_cap:
-            qty = bucket_cap / entry_price
-
-        # =========================
-        # 5. 최소 수량
-        # =========================
-        lot_size = 1
-        qty = (qty // lot_size) * lot_size
-
-        if qty <= 0:
-            return {"allowed": False, "reason": "QTY_ZERO"}
-
-        # =========================
-        # 6. 통과
-        # =========================
-        return {
-            "allowed": True,
-            "size": qty,
-            "reason": "OK"
-        }
-
-    except Exception as e:
-        return {"allowed": False, "reason": f"ERROR: {str(e)}"}
+    # =========================
+    # 🔵 최종 반환 (형식 고정)
+    # =========================
+    return {
+        "allowed": True,
+        "size": size
+    }

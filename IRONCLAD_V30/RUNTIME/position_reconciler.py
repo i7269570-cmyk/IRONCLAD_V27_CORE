@@ -1,31 +1,63 @@
+# position_reconciler.py
+
 import logging
-from datetime import datetime
-from typing import Dict, Any
-from state_manager import save_state
 
-logger = logging.getLogger("IRONCLAD_RUNTIME.RECONCILER")
+logger = logging.getLogger("IRONCLAD_RECONCILER")
 
-def reconcile_positions(current_state: Dict[str, Any], exit_results: Dict[str, Any], state_path: str) -> Dict[str, Any]:
+
+def reconcile_positions(state, exit_results, state_path):
     """
-    [FIX] 시그니처 일치: (current_state, exit_results, state_path) 3인자 구성
-    [FIX] SSOT 준수: 내부 경로 추론 제거, 주입된 state_path 사용
+    입력:
+        state: dict
+        exit_results: dict
+    출력:
+        dict
     """
-    updated_positions = current_state.get("positions", []).copy()
-    exit_signals = exit_results.get("exit_signals", [])
-    exited_symbols = {s["symbol"] for s in exit_signals}
-    
-    # 1. 청산 반영
-    final_positions = [p for p in updated_positions if p["symbol"] not in exited_symbols]
-    
-    # 2. 내부 상태 갱신
-    current_state["positions"] = final_positions
-    current_state["last_reconciled"] = datetime.now().isoformat()
-    
-    # 3. 주입된 SSOT 경로에 저장
-    try:
-        save_state(current_state, state_path)
-        logger.info(f"RECONCILER: State saved to {state_path}")
-    except Exception as e:
-        raise RuntimeError(f"RECONCILER_SAVE_FAILURE: {str(e)}")
 
-    return current_state
+    # =========================
+    # 🔵 입력 방어 (핵심)
+    # =========================
+    if not isinstance(state, dict):
+        return {"positions": {}}
+
+    positions = state.get("positions", {})
+
+    if not isinstance(positions, dict):
+        positions = {}
+
+    # exit_results 방어
+    if isinstance(exit_results, list):
+        # 잘못 들어온 경우 무시
+        exit_results = {}
+
+    if not isinstance(exit_results, dict):
+        exit_results = {}
+
+    # =========================
+    # 🔵 안전 복사
+    # =========================
+    new_positions = {}
+
+    for symbol, pos in positions.items():
+
+        # 🔴 여기서 기존 코드가 터졌을 가능성 높음
+        if not isinstance(symbol, str):
+            continue
+
+        if not isinstance(pos, dict):
+            continue
+
+        # =========================
+        # 🔵 EXIT 처리 (현재 없음)
+        # =========================
+        if symbol in exit_results:
+            continue
+
+        new_positions[symbol] = pos
+
+    # =========================
+    # 🔵 상태 업데이트
+    # =========================
+    state["positions"] = new_positions
+
+    return state

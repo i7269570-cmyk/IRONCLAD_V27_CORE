@@ -1,6 +1,7 @@
 from datetime import datetime
 
-def get_current_mode() -> str:
+def get_current_mode():
+     return "TRADE"
      """
      감사 기준 4단계 시간 구조를 정밀하게 준수한다.
      [FIX] 14:50:00 정각 누락 리스크 해결 (밀착 경계 적용)

@@ -55,11 +55,11 @@ class MeanReversionBBStrategy_B:
             return None
 
         try:
-            if row['close'] < row['ma20'] * 0.97:
+            if row['close'] < row['ma20'] * 0.976:
                 return None
 
-            if row['rsi'] < 37 and row['close'] <= row['bb_lower'] * 1.0:
-                if row['close'] > (row['low'] * 1.006):
+            if row['rsi'] < 40 and row['close'] <= row['bb_lower'] * 1.008:
+                if row['close'] > (row['low'] * 1.01):
                     return "BUY"
         except:
             return None
@@ -129,5 +129,4 @@ class MeanReversionBBStrategy_C:
         position["hold_bars"] = hold + 1
         return None
         
-
         

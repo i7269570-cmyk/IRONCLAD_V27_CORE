@@ -1,55 +1,63 @@
-import logging
-from typing import List, Dict, Any
+def process_exits(mode, state, strategy_path):
 
-logger = logging.getLogger("IRONCLAD_RUNTIME.ENTRY_ENGINE")
+    if not isinstance(state, dict):
+        return {}
 
+    positions = state.get("positions", {})
+    if not isinstance(positions, dict):
+        return {}
 
-def filter_by_today_symbols(signals: List[Dict[str, Any]], state: Dict[str, Any]) -> List[Dict[str, Any]]:
-    allowed_stock = set(state.get("symbols", {}).get("stock", []))
-    allowed_crypto = set(state.get("symbols", {}).get("crypto", []))
+    exit_results = {}
 
-    filtered = []
+    for symbol, pos in positions.items():
 
-    for sig in signals:
-        symbol = sig.get("symbol")
-        asset_type = sig.get("asset_type")  # "STOCK" or "CRYPTO"
+        if not isinstance(pos, dict):
+            continue
 
-        if asset_type == "STOCK" and symbol in allowed_stock:
-            filtered.append(sig)
+        asset = pos.get("asset_type", "STOCK")
 
-        elif asset_type == "CRYPTO" and symbol in allowed_crypto:
-            filtered.append(sig)
+        # 전략 선택
+        if asset == "STOCK":
+            strategy_folder = "stock_A"
+        else:
+            strategy_folder = "crypto_A"
 
-    return filtered
+        import os, yaml
+        path = os.path.join(strategy_path, strategy_folder, "exit_rules.yaml")
 
+        try:
+            with open(path, "r") as f:
+                rules = yaml.safe_load(f)
+        except:
+            continue
 
-def generate_signals(
-    candidates: List[Dict[str, Any]],
-    strategy_path: str,
-    state: Dict[str, Any]  # ✅ 추가
-) -> List[Dict[str, Any]]:
+        exit_rule = rules.get("exit", {})
 
-    if not candidates:
-        return []
+        tp = exit_rule.get("take_profit")
+        sl = exit_rule.get("stop_loss")
+        max_hold = exit_rule.get("max_hold")
 
-    try:
-        signals = []
+        entry_price = pos.get("entry_price")
+        current_price = pos.get("price")
 
-        for asset in candidates:
-            signals.append({
-                "symbol": asset.get("symbol"),
-                "side": "BUY",
-                "price": asset.get("price"),
-                "asset_type": asset.get("asset_type"),
-                "entry_score": asset.get("selection_score", 0)
-            })
+        if not entry_price or not current_price:
+            continue
 
-        # ✅ 오늘 종목만 필터
-        signals = filter_by_today_symbols(signals, state)
+        pnl = (current_price - entry_price) / entry_price
+        hold = pos.get("hold_bars", 0)
 
-        logger.info(f"ENTRY_ENGINE: Filtered {len(signals)} signals (today symbols only).")
+        if tp and pnl >= tp:
+            exit_results[symbol] = "EXIT"
+            continue
 
-        return signals
+        if sl and pnl <= -sl:
+            exit_results[symbol] = "EXIT"
+            continue
 
-    except Exception as e:
-        raise RuntimeError(f"ENTRY_ENGINE_FAILURE: {str(e)}")
+        if max_hold and hold >= max_hold:
+            exit_results[symbol] = "EXIT"
+            continue
+
+        pos["hold_bars"] = hold + 1
+
+    return exit_results

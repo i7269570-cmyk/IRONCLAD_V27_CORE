@@ -1,51 +1,142 @@
-def process_exits(mode, current_state, strategy_path):
+import logging
+import os
+import yaml
+from typing import List, Dict, Any
 
-    positions = list(current_state.get("positions", {}).values())
+logger = logging.getLogger("IRONCLAD_RUNTIME.ENTRY_ENGINE")
 
-    exit_signals = []
 
-    # ✅ FORCE_EXIT는 무조건 전량 청산
-    if mode == "FORCE_EXIT":
-        for pos in positions:
-            exit_signals.append({
-                **pos,
-                "side": "SELL",
-                "reason": "FORCE_EXIT",
-                "asset_type": pos.get("asset_type")
+# =========================
+# 🔵 전략 로드 (수정 금지)
+# =========================
+def load_strategy(strategy_path: str, asset_type: str) -> Dict[str, Any]:
+    file_name = "stock_strategy.yaml" if asset_type == "STOCK" else "crypto_strategy.yaml"
+    path = os.path.join(strategy_path, file_name)
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def generate_signals(
+    candidates: List[Dict[str, Any]],
+    strategy_path: str,
+    state: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+
+    # =========================
+    # 🔵 입력 방어
+    # =========================
+    if isinstance(candidates, dict):
+        candidates = [candidates]
+
+    if not isinstance(candidates, list):
+        return []
+
+    if not candidates:
+        print("ENTRY_ENGINE: candidates 비어있음")
+        return []
+
+    try:
+        print("===== ENTRY_ENGINE START =====")
+        print("CANDIDATE COUNT:", len(candidates))
+
+        valid_candidates = [c for c in candidates if isinstance(c, dict)]
+
+        if not valid_candidates:
+            print("유효한 candidate 없음")
+            return []
+
+        print("FIRST VALID:", valid_candidates[0])
+
+        required_fields = ["symbol", "asset_type", "price"]
+
+        missing = [f for f in required_fields if f not in valid_candidates[0]]
+        if missing:
+            print("MISSING FIELDS:", missing)
+        else:
+            print("BASIC FIELDS OK")
+
+        signals: List[Dict[str, Any]] = []
+
+        stock_count = 0
+        crypto_count = 0
+
+        for asset in valid_candidates:
+
+            symbol = asset.get("symbol")
+            price = asset.get("price")
+            asset_type = asset.get("asset_type")
+
+            if not symbol or price is None or not asset_type:
+                continue
+
+            # =========================
+            # 🔥 전략 로드
+            # =========================
+            strategy = load_strategy(strategy_path, asset_type)
+            entry = strategy.get("entry", {})
+
+            rsi_max = entry.get("rsi_max")
+            bb_mul = entry.get("bb_multiplier")
+            low_buf = entry.get("low_buffer")
+
+            # =========================
+            # 🔥 전략 조건
+            # =========================
+            allow_entry = False
+
+            if (
+                asset.get("rsi") is not None and
+                asset.get("bb_lower") is not None and
+                asset.get("low") is not None and
+
+                rsi_max is not None and
+                bb_mul is not None and
+                low_buf is not None
+            ):
+                if (
+                    asset["rsi"] < rsi_max and
+                    asset["price"] <= asset["bb_lower"] * bb_mul and
+                    asset["price"] > asset["low"] * low_buf
+                ):
+                    allow_entry = True
+
+            if not allow_entry:
+                continue
+
+            # =========================
+            # 🔵 종목 제한
+            # =========================
+            if asset_type == "STOCK":
+                if stock_count >= 2:
+                    continue
+                stock_count += 1
+
+            elif asset_type == "CRYPTO":
+                if crypto_count >= 2:
+                    continue
+                crypto_count += 1
+
+            signals.append({
+                "symbol": symbol,
+                "side": "BUY",
+                "price": price,
+                "asset_type": asset_type,
             })
-        return exit_signals
 
-    # === 기존 로직 유지 ===
-    import yaml, os
+        # =========================
+        # 🔵 출력 정규화
+        # =========================
+        clean_signals = [s for s in signals if isinstance(s, dict)]
 
-    with open(os.path.join(strategy_path, "exit_rules.yaml"), "r") as f:
-        rules = yaml.safe_load(f)["conditions"]
+        print("FINAL SIGNALS:", clean_signals)
+        print("===== ENTRY_ENGINE END =====")
 
-    for pos in positions:
+        return clean_signals
 
-        pos["hold_bars"] = pos.get("hold_bars", 0) + 1
-
-        entry_price = pos["entry_price"]
-        current_price = pos.get("current_price", entry_price)
-        profit = (current_price - entry_price) / entry_price
-
-        for cond in rules:
-            field = cond["field"]
-            op = cond["op"]
-            value = cond["value"]
-
-            left = profit if field == "profit" else pos.get(field)
-
-            if isinstance(value, str):
-                value = eval(value, {}, pos)
-
-            if (op == ">=" and left >= value) or (op == "<=" and left <= value):
-                exit_signals.append({
-                    **pos,
-                    "side": "SELL",
-                    "reason": "RULE_EXIT",
-                    "asset_type": pos.get("asset_type")
-                })
-                break
-
-    return exit_signals
+    except Exception as e:
+        raise RuntimeError(f"ENTRY_ENGINE_FAILURE: {str(e)}")

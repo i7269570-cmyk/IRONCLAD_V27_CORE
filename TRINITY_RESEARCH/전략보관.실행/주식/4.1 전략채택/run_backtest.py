@@ -43,9 +43,7 @@ df = df.dropna()
 # =========================
 # 🔥 검증 데이터 분리 (핵심)
 # =========================
-start = int(len(df) * 0.3)
-end   = int(len(df) * 0.7)
-df = df.iloc[start:end]
+df = df.head(int(len(df) * 0.3))
 
 print("✅ 검증 데이터 준비 완료")
 

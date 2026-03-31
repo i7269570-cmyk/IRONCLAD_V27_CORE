@@ -104,15 +104,5 @@ def print_result(name, r):
 # =========================
 # 실행
 # =========================
-rA = run_backtest(MeanReversionBBStrategy_A)
-input("👉 A 확인 후 Enter")
-
 rB = run_backtest(MeanReversionBBStrategy_B)
-input("👉 B 확인 후 Enter")
-
-rC = run_backtest(MeanReversionBBStrategy_C)
-input("👉 C 확인 후 Enter")
-
-print_result("A", rA)
-print_result("B", rB)
-print_result("C", rC)
+print_result("B (검증)", rB)

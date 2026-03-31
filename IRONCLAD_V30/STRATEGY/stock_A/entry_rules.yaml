@@ -1,0 +1,5 @@
+entry:
+  ma20_filter: 0.978
+  rsi_max: 40
+  bb_multiplier: 1.006
+  low_buffer: 1.01

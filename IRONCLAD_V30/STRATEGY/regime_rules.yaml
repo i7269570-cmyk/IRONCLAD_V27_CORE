@@ -1,2 +1,19 @@
-regime:
-  enabled: false
+regime_filter:
+
+  enabled: true
+
+  score_threshold: 50
+
+  factors:
+
+    trend:
+      weight: 0.4
+      type: moving_average
+
+    momentum:
+      weight: 0.3
+      type: rsi
+
+    volatility:
+      weight: 0.3
+      type: atr

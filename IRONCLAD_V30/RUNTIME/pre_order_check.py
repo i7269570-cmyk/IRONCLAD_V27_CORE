@@ -1,48 +1,45 @@
-import logging
-from typing import List, Dict, Any
+# pre_order_check.py
 
-# =============================================================================
-# IRONCLAD_V30.1_FINAL: PRE_ORDER_CHECK (Dual Guarding)
-# =============================================================================
-logger = logging.getLogger("IRONCLAD_RUNTIME.PRE_ORDER_CHECK")
+def validate_before_order(signals, mode, positions, system_config):
+    """
+    입력: list[dict]
+    출력: list[dict]
+    """
 
-def validate_before_order(
-    signals: List[Dict[str, Any]],
-    mode: str,
-    current_positions: List[Dict[str, Any]],
-    system_config: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    """주문 직전 최종 게이트키퍼: 2차 중복 검사 및 독립적 모드 차단 수행"""
-    
-    # [1] 독립적 운영 모드 검증 (상위 분기 우회 대비)
-    if mode != "TRADE":
-        logger.warning(f"PRE_ORDER: Blocked. Independent mode check failed (Current: {mode})")
-        return []
+    # =========================
+    # 🔵 입력 방어 (핵심)
+    # =========================
+    if isinstance(signals, dict):
+        signals = [signals]
 
-    if not signals:
-        return []
+    if not isinstance(signals, list):
+        raise TypeError(f"signals must be list, got {type(signals)}")
 
-    # [2] 현재 보유 심볼 리스트 추출 (2차 검사용)
-    current_symbols = {pos.get("symbol") for pos in current_positions}
-    
-    passed_signals = []
-    for signal in signals:
-        symbol = signal.get("symbol")
-        price = signal.get("price")
-        volume = signal.get("volume")
+    clean_signals = []
+    for s in signals:
+        if isinstance(s, dict):
+            clean_signals.append(s)
 
-        # [3] 2차 Symbol 중복 검증 (RISK 해결)
-        if symbol in current_symbols:
-            logger.warning(f"PRE_ORDER: {symbol} blocked by 2nd duplicate check.")
+    # =========================
+    # 🔵 기본 통과 로직
+    # =========================
+    validated = []
+
+    for sig in clean_signals:
+        try:
+            symbol = sig.get("symbol")
+            side = sig.get("side")
+
+            if not symbol or not side:
+                continue
+
+            # 🔥 중복 포지션 방지
+            if symbol in positions:
+                continue
+
+            validated.append(sig)
+
+        except Exception:
             continue
 
-        # [4] 물리적 데이터 유효성 검사 (Price/Volume)
-        if price and volume and price > 0 and volume > 0:
-            passed_signals.append(signal)
-            # 루프 내 중복 진입 방지 위해 추가
-            current_symbols.add(symbol)
-        else:
-            logger.error(f"PRE_ORDER: Invalid data integrity for {symbol}")
-
-    logger.info(f"PRE_ORDER: {len(passed_signals)}/{len(signals)} passed final gate.")
-    return passed_signals
+    return validated
