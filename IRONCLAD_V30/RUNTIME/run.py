@@ -19,7 +19,7 @@ from ledger_writer import record_to_ledger
 from exit_engine import process_exits
 from position_reconciler import reconcile_positions
 from state_manager import save_state
-from error_handler import handle_critical_error
+from exception_handler import handle_critical_error
 
 def run_pipeline(paths: dict, strategy_path: str, state_path: str, evidence_path: str, state: Dict[str, Any], system_config: Dict[str, Any]):
     """
