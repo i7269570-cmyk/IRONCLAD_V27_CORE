@@ -4,20 +4,20 @@ entry:
 
   conditions:
     - field: close
-      op: ">"
-      ref: "ma20"
-      multiplier: 0.978
-
-    - field: rsi
       op: "<"
-      value: 40
+      ref: "ma20"
+      multiplier: 0.96
 
     - field: close
-      op: "<="
-      ref: "bb_lower"
-      multiplier: 1.006
+      op: ">"
+      ref: "ma20"
+      multiplier: 0.90
+
+    - field: volume_ratio
+      op: ">="
+      value: 1.2
 
     - field: close
       op: ">"
       ref: "low"
-      multiplier: 1.01
+      multiplier: 1.005

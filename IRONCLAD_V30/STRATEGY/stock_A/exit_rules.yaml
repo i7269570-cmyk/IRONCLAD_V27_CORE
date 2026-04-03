@@ -7,4 +7,4 @@ exit:
   conditions:
     - field: close
       op: ">="
-      ref: "bb_middle"
+      ref: "ma20"

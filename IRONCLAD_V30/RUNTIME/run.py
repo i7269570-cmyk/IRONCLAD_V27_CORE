@@ -1,5 +1,5 @@
 # ============================================================
-# IRONCLAD_V31.16 - Final Pipeline Integration (Full State Reconciliation)
+# IRONCLAD_V31.17 - Final Pipeline Integration (Selector Binding Fixed)
 # ============================================================
 import os
 from typing import Dict, Any, List
@@ -23,9 +23,9 @@ from exception_handler import handle_critical_error
 
 def run_pipeline(paths: dict, strategy_path: str, state_path: str, evidence_path: str, state: Dict[str, Any], system_config: Dict[str, Any]):
     """
-    [V31.16 Pipeline Specification]
-    Goal: Connect fill_results to reconciler for full state update.
-    Ensure all state mutations are handled exclusively by reconcile_positions.
+    [V31.17 Pipeline Specification]
+    Goal: Correctly extract 'symbol' from selected candidates (List[Dict]) 
+          to build a valid filtered_bundle for entry_engine.
     """
     try:
         # 1. scheduler
@@ -38,6 +38,7 @@ def run_pipeline(paths: dict, strategy_path: str, state_path: str, evidence_path
         asset_types = ["STOCK", "CRYPTO"]
         data_bundle = load_market_data(asset_types, strategy_path)
         
+        # Indicator Calculation (Applied to all loaded data)
         for symbol in data_bundle:
             data_bundle[symbol]["history"] = calculate_indicators(data_bundle[symbol]["history"])
 
@@ -62,15 +63,28 @@ def run_pipeline(paths: dict, strategy_path: str, state_path: str, evidence_path
         # 3. selector & 4. regime_filter processing
         fill_results = []
         if mode == "TRADE":
+            # [Logic] Identify candidates (returns List[Dict])
             selected = select_candidates(selector_input, strategy_path)
+            
+            # [Logic] Global market regime check
             regime_ok = evaluate_market_regime(selector_input, strategy_path)
             
             if not regime_ok:
                 save_state(state, state_path)
                 return state
 
-            # 5. entry_engine
-            entry_signals = generate_signals(data_bundle, strategy_path, state, system_config)
+            # 5. entry_engine (Targeted Execution)
+            # [Correction] selected is List[Dict]. Extract 'symbol' to filter data_bundle.
+            selected_symbols = [item["symbol"] for item in selected if "symbol" in item]
+            
+            filtered_bundle = {
+                symbol: data_bundle[symbol] 
+                for symbol in selected_symbols 
+                if symbol in data_bundle
+            }
+            
+            # Entry signals are generated ONLY for the filtered subset
+            entry_signals = generate_signals(filtered_bundle, strategy_path, state, system_config)
 
             # 6. risk_gate
             candidate_signals = []
@@ -90,13 +104,13 @@ def run_pipeline(paths: dict, strategy_path: str, state_path: str, evidence_path
                     system_config
                 )
 
-            # [Spec] execute_orders -> track_fills (Fills are NOT applied to state here)
+            # [Spec] execute_orders -> track_fills
             if approved_signals:
                 order_results = execute_orders(approved_signals)
                 fills_input = order_results.get("results", [])
                 fill_results = track_fills(fills_input, state)
 
-        # 11. exit_engine
+        # 11. exit_engine (Processes full data_bundle for existing positions)
         exit_results = {}
         if mode in ["TRADE", "NO_ENTRY", "FORCE_EXIT"]:
             exit_list = process_exits(data_bundle, state, strategy_path)
@@ -118,7 +132,6 @@ def run_pipeline(paths: dict, strategy_path: str, state_path: str, evidence_path
             )
 
         # 12. position_reconciler (The ONLY point where state is updated)
-        # [V31.16] Corrected call signature to include both entries and exits.
         if fill_results or exit_results:
             state = reconcile_positions(
                 state, 

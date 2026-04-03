@@ -1,13 +1,14 @@
 # ============================================================
-# IRONCLAD_V31 - Strategic Entry Engine (V31.0 Structural Split)
+# IRONCLAD_V31 - Strategic Entry Engine (V31.18 Full Visibility)
 # ============================================================
 import os
 import yaml
 import operator
+import traceback
 from typing import List, Dict, Any
 import pandas as pd
 
-# [2-1] OPERATORS 정의 전체 (하위 호환 유지)
+# [2-1] OPERATORS 정의
 OPERATORS = {
     "<": operator.lt,
     "<=": operator.le,
@@ -16,9 +17,8 @@ OPERATORS = {
     "==": operator.eq
 }
 
-# [2-2] load_strategy_entry_rules 함수 전체 (수정 없음)
+# [2-2] load_strategy_entry_rules
 def load_strategy_entry_rules(strategy_path: str) -> Dict[str, Any]:
-    """모든 전략 폴더에서 entry_rules.yaml을 수집하여 반환함"""
     all_rules = {}
     if not os.path.exists(strategy_path):
         raise RuntimeError(f"STRATEGY_ROOT_MISSING: {strategy_path}")
@@ -36,22 +36,26 @@ def load_strategy_entry_rules(strategy_path: str) -> Dict[str, Any]:
                     if rules_data and "entry" in rules_data:
                         all_rules[folder] = rules_data["entry"]
             except Exception as e:
-                print(f"[ERROR] Failed to load {rules_file}: {e}")
+                print(f"[ERROR] Strategy Load Failed: {rules_file} | {str(e)}")
     
     return all_rules
 
-# [2-3] evaluate_condition 함수 전체 (판단 전용: history.iloc[-1] 기반)
+# [2-3] evaluate_condition (NaN 및 유효성 검증 강화)
 def evaluate_condition(last_row: pd.Series, condition: Dict[str, Any]) -> bool:
-    """YAML 정의 기반 단일 조건 평가 (시계열 마지막 행 기준)"""
     field = condition.get("field")
     op_str = condition.get("op")
     
     if field not in last_row:
-        raise RuntimeError(f"CONDITION_FIELD_MISSING: {field}")
+        raise RuntimeError(f"FIELD_NOT_FOUND: {field}")
     if op_str not in OPERATORS:
-        raise RuntimeError(f"UNSUPPORTED_OPERATOR: {op_str}")
+        raise RuntimeError(f"INVALID_OPERATOR: {op_str}")
 
     left_val = last_row[field]
+    
+    # [CRITICAL] NaN 탐지: 무음 통과 방지
+    if pd.isna(left_val):
+        raise RuntimeError(f"NAN_VALUE_DETECTED: field '{field}'")
+
     op_func = OPERATORS[op_str]
 
     if "value" in condition:
@@ -59,16 +63,21 @@ def evaluate_condition(last_row: pd.Series, condition: Dict[str, Any]) -> bool:
     elif "ref" in condition:
         ref_field = condition["ref"]
         if ref_field not in last_row:
-            raise RuntimeError(f"CONDITION_REF_FIELD_MISSING: {ref_field}")
+            raise RuntimeError(f"REF_FIELD_NOT_FOUND: {ref_field}")
         
         multiplier = float(condition.get("multiplier", 1.0))
-        right_val = last_row[ref_field] * multiplier
+        right_val = last_row[ref_field]
+        
+        if pd.isna(right_val):
+            raise RuntimeError(f"NAN_REF_VALUE_DETECTED: field '{ref_field}'")
+            
+        right_val *= multiplier
     else:
-        raise RuntimeError(f"CONDITION_TARGET_MISSING: {field}")
+        raise RuntimeError(f"INCOMPLETE_CONDITION_SPEC: {field}")
 
     return op_func(left_val, right_val)
 
-# [2-4] generate_signals (V31.0: history 판단 + current 실행 분리)
+# [2-4] generate_signals (V31.18: No-Silent-Failure Structure)
 def generate_signals(
     data_bundle: Dict[str, Dict[str, Any]], 
     strategy_path: str, 
@@ -76,17 +85,15 @@ def generate_signals(
     system_config: Dict[str, Any]
 ) -> List[Dict[str, Any]]:
     """
-    [V31.0 시그널 생성 엔진]
-    1. history: 전략 조건 및 데이터 계약(asset_type) 판단
-    2. current: 실제 시그널 생성 시 실행값(price, asset_type) 추출
+    [V31.18 시그널 생성 엔진]
+    - 모든 예외(RuntimeError, Exception)에 대해 명시적 로깅 강제.
+    - 예외 발생 시 is_qualified는 False가 되나, 원인은 반드시 표준 출력에 기록됨.
     """
     signals = []
-    
     strategy_rules = load_strategy_entry_rules(strategy_path)
     if not strategy_rules:
         return []
 
-    # [V31.0] 입력 구조 수정: bundle 단위 순회
     for symbol, bundle in data_bundle.items():
         current = bundle["current"]
         history = bundle["history"]
@@ -94,40 +101,53 @@ def generate_signals(
         if history.empty:
             continue
             
-        # [판단 구조] 모든 조건 판단은 history 기반
         if "asset_type" not in history.columns:
-            raise RuntimeError(f"DATA_CONTRACT_VIOLATION: asset_type missing for {symbol}")
+            raise RuntimeError(f"DATA_CONTRACT_VIOLATION: asset_type column missing for {symbol}")
 
         last_row = history.iloc[-1]
 
-        # 각 전략별 진입 조건 검사
         for strategy_name, entry_cfg in strategy_rules.items():
             conditions = entry_cfg.get("conditions", [])
             if not conditions:
                 continue
 
             is_qualified = True
-            for cond in conditions:
-                try:
+            try:
+                for cond in conditions:
                     if not evaluate_condition(last_row, cond):
                         is_qualified = False
                         break
-                except Exception:
-                    is_qualified = False
-                    break
             
-            # [실행 구조] 모든 조건을 통과한 경우 current(snapshot)를 사용하여 시그널 생성
+            # 1. 의도된 데이터 무결성 예외 (NaN 등)
+            except RuntimeError as re:
+                print(f"[INTEGRITY_SIGNAL_REJECTED] {symbol} | {strategy_name} | Reason: {str(re)}")
+                is_qualified = False
+                continue 
+
+            # 2. 예기치 못한 일반 예외 (타입 에러, 인덱스 에러 등)
+            except Exception as e:
+                # [V31.18 핵심] 예외를 무음 흡수하지 않고 트레이스백을 출력하여 개발자에게 경고
+                print(f"[UNEXPECTED_ENGINE_ERROR] {symbol} | {strategy_name}")
+                print(traceback.format_exc()) 
+                is_qualified = False
+                continue
+            
             if is_qualified:
+                # 시그널 생성 직전 최종 실행 값(Snapshot) 유효성 검사
+                if pd.isna(current.get("price")):
+                    print(f"[EXECUTION_REJECTED] {symbol} | Price is NaN")
+                    continue
+
                 signals.append({
                     "symbol": symbol,
                     "side": "BUY",
                     "price": float(current["price"]),
-                    "asset_type": current["asset_type"],
+                    "asset_type": str(current["asset_type"]),
                     "strategy_name": strategy_name,
                     "risk_per_trade": entry_cfg.get("risk_per_trade"),
                     "stop_distance": entry_cfg.get("stop_distance")
                 })
-                # 1자산 1신호 원칙
+                # 1자산 1신호 원칙 준수
                 break
 
     return signals
